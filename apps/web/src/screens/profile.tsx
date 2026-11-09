@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from 'react'
 import type { Api, Approach, AutoShare, Me } from '../../../api/src/contract'
-import { call, isMock, type Session } from '../api'
+import { call, isMock, personas, type Session } from '../api'
 import { BadgeSheet, TagSvg } from '../scan'
 import { Silhouette } from '../Silhouette'
 import { approachLabel, FieldPicker, Problem, useApp } from '../ui'
@@ -92,7 +92,15 @@ function Sharing({ draft, set }: Step) {
 }
 
 const steps = [['You', You], ['Interests', Interests], ['Sharing and selfie', Sharing]] as const
-const personas = [['Amara', 'demo-500'], ['Diego', 'demo-501'], ['Elastic booth', 'demo-580'], ['Organizer', 'demo-590']]
+
+/** The whole idea in three lines: shown before sign-up and beside the phones on Stage. */
+export const How = () => (
+  <ol className="how">
+    <li><b>Scan a badge.</b> You both see a silhouette and what you have in common.</li>
+    <li><b>Tap Share</b> when you want to. Your card and photo go to that one person.</li>
+    <li><b>Unshare any time.</b> It is deleted and you get a receipt.</li>
+  </ol>
+)
 
 export function Onboarding({ session, onToken }: { session: Session; onToken: (token: string) => void }) {
   const [draft, setDraft] = useState(blank)
@@ -112,11 +120,7 @@ export function Onboarding({ session, onToken }: { session: Session; onToken: (t
         <header className="hero">
           <p className="wordmark">Confer</p>
           <h1>The front of your badge says hi. <em>Only you say yes.</em></h1>
-          <ol className="how">
-            <li><b>Scan a badge.</b> You both see a silhouette and what you have in common.</li>
-            <li><b>Tap Share</b> when you want to. Your card and photo go to that one person.</li>
-            <li><b>Unshare any time.</b> It is deleted and you get a receipt.</li>
-          </ol>
+          <How />
         </header>
       )}
       <form onSubmit={submit} className="paper">
@@ -131,7 +135,7 @@ export function Onboarding({ session, onToken }: { session: Session; onToken: (t
       </form>
       <section className="demo-in" aria-label="Demo sign-in">
         <h2>{isMock ? 'Or try a demo person' : 'Demo sign-in'}</h2>
-        <div className="row">{personas.map(([name, token]) => <button key={token} className="btn" onClick={() => onToken(token)}>{name}</button>)}</div>
+        <div className="row">{Object.values(personas).map(([name, token]) => <button key={token} className="btn" onClick={() => onToken(token)}>{name}</button>)}</div>
       </section>
     </main>
   )

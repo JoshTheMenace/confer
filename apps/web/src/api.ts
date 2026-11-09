@@ -8,6 +8,10 @@ const search = new URLSearchParams(globalThis.location?.search)
 export const flag = (name: string) => search.get(name)
 export const isMock = search.has('mock') || !!import.meta.env?.VITE_MOCK
 
+/** The four demo sign-ins. The same tokens work against the real API and the mock. */
+export const personas = { amara: ['Amara', 'demo-500'], diego: ['Diego', 'demo-501'], booth: ['Elastic booth', 'demo-580'], organizer: ['Organizer', 'demo-590'] } as const
+export type Persona = keyof typeof personas
+
 // One token per slot, so two personas can run side by side. Memory covers private mode, where localStorage throws.
 const memory = new Map<string, string>()
 const key = (slot: string) => `confer.token.${slot}`

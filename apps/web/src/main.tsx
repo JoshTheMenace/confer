@@ -1,8 +1,8 @@
 import { init } from '@dash0/sdk-web'
 import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { call, flag, isMock } from './api'
-import { App, type Persona, Stage } from './App'
+import { call, flag, isMock, type Persona } from './api'
+import { App, Stage } from './App'
 import './styles.css'
 
 // Runtime config from the API so one image works in every environment. Best effort: the app never waits on it.

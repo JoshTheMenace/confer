@@ -17,7 +17,6 @@ export const nameOf = (c: Card) => c.name ?? 'This person'
 export function usePoll<T>(fn: () => Promise<T>, deps: unknown[]) {
   const [data, setData] = useState<T>()
   const [error, setError] = useState<string>()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const reload = useCallback(() => fn().then((d) => { setData(d); setError(undefined) }, (e: Error) => setError(e.message)), deps)
   useEffect(() => {
     reload()

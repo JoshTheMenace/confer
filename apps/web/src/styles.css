@@ -120,7 +120,8 @@ details { border-top: 1.5px dashed var(--line); padding-top: 8px } summary { min
 /* Stage: the projector view. */
 .stage { min-height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; gap: 10px; padding: 14px 28px; max-width: 1440px; margin: 0 auto }
 .stage > header { display: flex; align-items: baseline; gap: 20px } .stage .wordmark { font-size: 2rem } .tagline { font-size: 1.35rem; font-weight: 700 }
-.phones { display: flex; justify-content: center; gap: 72px; min-height: 0 } .phone-wrap { display: flex; flex-direction: column; gap: 8px; align-items: center }
+.phones { display: flex; justify-content: center; gap: 56px; min-height: 0 } .phones .how { width: 290px; align-self: center; font-size: 1.3rem; gap: 22px }
+@media (max-width: 1250px) { .phones .how { display: none } } .phone-wrap { display: flex; flex-direction: column; gap: 8px; align-items: center }
 .switch { display: flex; gap: 4px } .switch button { min-height: 44px; padding: 0 12px; border-radius: 22px; border: 1.5px solid var(--ink); background: transparent; color: var(--ink); font: inherit; font-weight: 700; font-size: .85rem; cursor: pointer } .switch [aria-pressed='true'] { background: var(--ink); color: var(--bg) }
 .phone { width: 390px; height: min(690px, calc(100dvh - 250px)); border: 10px solid var(--ink); border-radius: 44px; overflow: hidden; box-shadow: var(--shadow) } .phone .app { height: 100% } .phone .onboarding { min-height: 0; height: 100%; overflow-y: auto }
 .stage footer .stats { flex-wrap: nowrap } .stage footer .stat { flex-direction: row; align-items: baseline; gap: 10px } .stage footer .stat b { font-size: 2.4rem } .stage footer .stat > span { font-size: 1rem }

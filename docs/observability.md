@@ -6,7 +6,7 @@ Confer is watched with [Dash0](https://www.dash0.com). Think of it as the app's 
 
 | Signal | Where it comes from | What you can answer |
 |---|---|---|
-| **Traces** | OpenTelemetry auto-instrumentation in `dex-api` (`apps/api/src/otel.ts`). Server spans are named by route (`POST /api/scan`), Elasticsearch and OpenAI calls are child spans. | Which route is slow, and which Elasticsearch call inside it? |
+| **Traces** | OpenTelemetry auto-instrumentation in `dex-api` (`apps/api/src/otel.ts`). Server spans are named by route (`POST /api/scan`), Elasticsearch calls are child spans. (OpenLIT is initialized for LLM calls but idle: Confer makes none today.) | Which route is slow, and which Elasticsearch call inside it? |
 | **Business spans** | `span('consent.share', …)` in `apps/api/src/telemetry.ts` wraps one product step. | A trace reads like the product: scan, share, unshare. |
 | **Logs** | `pino`, exported over OTLP with the trace id attached. | What did the API say during this exact request? |
 | **Metrics** | Product counters `confer.scans`, `confer.shares`, `confer.unshares`, `confer.requests`, `confer.vault.reads`, plus HTTP and runtime metrics. | Is the product being used, and how? |

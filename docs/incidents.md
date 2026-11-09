@@ -1,6 +1,6 @@
 # Incident log
 
-Real problems we hit while building, and how we found them.
+Real problems we hit while building, and how we found them. Entries 1 to 4 are from the morning: they name routes and services of the first version (`/api/catch`, `/api/consent/:id`), which the current API replaced. Entry 5 is on the current API.
 
 ## 1. Pods stuck in ErrImagePull on first deploy (Radar AI investigation)
 
@@ -40,3 +40,12 @@ Real problems we hit while building, and how we found them.
 
 A plain Serverless write still costs about 0.5s from here, a floor set by network and storage, not by our code.
 - **Trade-off (raised by Gitar in review):** lists that are *searches* (the Dex, sponsor counts, the inbox list) now see a new write after the next refresh, within ~5s. The Dex merges the cards you just caught so it never looks empty right after a scan; sponsor counts and new inbox requests lagging a few seconds is acceptable.
+
+## 5. Every request re-checked the sign-in (found with Dash0 Agent0)
+
+- **Symptom:** the SLO `confer-api-fast` (95% of requests under 2 s), which Event Pulse shows on stage, read "at risk".
+- **Investigation:** we asked Agent0 which routes were slow and whether one Elasticsearch call ran on every request. Its answer, from 30 minutes of spans (full text: [evidence/agent0-token-lookup.md](evidence/agent0-token-lookup.md)): a `get` on the tokens index ran first on **707 of 720** API requests and added **246 ms at p50 and 807 ms at p95**. There were 746 lookups for only **4 distinct tokens**. Without that time, 25 of the 36 slow requests would finish under 2 s: **95.0% to about 98.5%**.
+- **Root cause:** sign-in was a real-time read from Elasticsearch on every request (itself the fix for incident 4, so new accounts work at once). Correct, but repeated for a fact that never changes.
+- **Fix:** each API pod remembers who a token belongs to for `AUTH_CACHE_SECONDS` (300 in `k8s/base/api.yaml`; off by default). Unknown tokens are never remembered. [PR #20](https://github.com/JoshTheMenace/confer/pull/20).
+- **After:** in a small sample from the venue network (5 to 7 requests each), the median `GET /api/me` went from 0.62 s to 0.25 s and `GET /api/people` from 0.94 s to 0.46 s. `GET /api/booth` is still the slowest route (four Elasticsearch steps one after another); Agent0 named overlapping two of them as the next step, which we did not do.
+

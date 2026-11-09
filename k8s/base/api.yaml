@@ -10,6 +10,7 @@ spec:
       containers:
         - name: api
           image: dex-api
+          imagePullPolicy: IfNotPresent
           ports: [{ containerPort: 3000 }]
           envFrom: [{ secretRef: { name: dex-secrets } }]
           env:

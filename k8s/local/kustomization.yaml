@@ -1,0 +1,5 @@
+# Local kind cluster: images are built on this machine and loaded with `kind load docker-image`.
+resources: [../base]
+images:
+  - { name: ghcr.io/joshthemenace/dex-api, newName: dex-api, newTag: dev }
+  - { name: ghcr.io/joshthemenace/dex-web, newName: dex-web, newTag: dev }

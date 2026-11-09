@@ -2,16 +2,15 @@ import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { auth, type Me } from '../auth.js'
-import { cards, giveCards, pairId, relations, sources, toKind, toReceipt, type Meeting } from '../consent.js'
+import { cards, giveCards, pairId, relations, toKind, toReceipt, type Meeting } from '../consent.js'
 import { contactFields, type Api, type ContactField } from '../contract.js'
 import { es, ix } from '../es.js'
 import { span, traceId, unshares } from '../telemetry.js'
 
-// Share needs a reason to know each other: a meeting in either direction, or a request from that booth.
+// Share needs a reason to know each other: a meeting in either direction or a conversation. Booths are public, so anyone may share with one.
 async function shareWith(viewer: Me, ids: string[], fields?: ContactField[]) {
-  const [{ me, rels }, asked] = await Promise.all([relations(viewer, ids), sources(ids.map((id) => ({ _index: ix.requests, _id: pairId(id, viewer.id) })))])
-  const requested = new Set(ids.filter((_, i) => asked[i]))
-  const to = rels.filter((r) => r.mine || r.theirs || requested.has(r.subject.id))
+  const { me, rels } = await relations(viewer, ids)
+  const to = rels.filter((r) => r.mine || r.theirs || r.thread || r.subject.kind === 'sponsor')
   const given = await giveCards(to.map((r) => ({ from: viewer.id, to: r.subject, fields: fields ?? me.shareFields ?? [], via: 'manual' as const })))
   return { viewer: { ...viewer, starred: me.starred }, rels: to.map((r, i) => ({ ...r, shareOut: given[i] })) }
 }
@@ -35,7 +34,7 @@ export const people = new Hono<{ Variables: { me: Me } }>()
   })
   .post('/:id/share', zValidator('json', z.object({ fields: z.array(z.enum(contactFields)).optional() })), async (c) => {
     const { viewer, rels } = await shareWith(c.var.me, [c.req.param('id')], c.req.valid('json').fields)
-    if (!rels.length) return c.json({ error: 'You can only share with someone you have met' }, 404)
+    if (!rels.length) return c.json({ error: 'You can only share with someone you have met or are talking to' }, 404)
     return c.json({ card: (await cards(viewer, rels))[0] } satisfies Api['POST /api/people/:id/share']['res'])
   })
   .delete('/:id/share', async (c) => {

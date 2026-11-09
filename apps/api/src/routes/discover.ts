@@ -3,6 +3,7 @@ import { trace } from '@opentelemetry/api'
 import { Hono, type Context } from 'hono'
 import { z } from 'zod'
 import { auth, type Me } from '../auth.js'
+import { sources, threadId, type ThreadDoc } from '../consent.js'
 import type { Api, Profile } from '../contract.js'
 import { discoverSearches, prospectSearch, toDiscover, toProspect, type DiscoverHits } from '../discover.js'
 import { es, ix } from '../es.js'
@@ -55,6 +56,13 @@ export const prospects = new Hono<Env>().get('/prospects', auth, async (c) => {
     if (!('hits' in r)) throw new Error(`prospects: lookup failed with ${r.status}`)
     return r.hits.hits.map((h) => h._source!.scanned ?? h._source!.attendee!)
   })
-  const res = await es.search<Doc>(prospectSearch({ id, ...booth }, exclude))
-  return c.json({ prospects: res.hits.hits.map(toProspect) } satisfies Api['GET /api/booth/prospects']['res'])
+  const hits = (await es.search<Doc>(prospectSearch({ id, ...booth }, exclude))).hits.hits
+  // Read by id, so a request sent a second ago already shows as sent.
+  const threads: (ThreadDoc | undefined)[] = await sources(hits.map((h) => ({ _index: ix.threads, _id: threadId(id, h._id!) })))
+  return c.json({
+    prospects: hits.map((h, i) => {
+      const t = threads[i]
+      return { ...toProspect(h, i), ...(t?.startedBy === id && { request: { status: t.status, note: t.firstText, sentAt: t.createdAt } }) }
+    }),
+  } satisfies Api['GET /api/booth/prospects']['res'])
 })

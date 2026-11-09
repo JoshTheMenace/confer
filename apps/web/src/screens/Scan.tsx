@@ -2,8 +2,8 @@ import { type CSSProperties, type FormEvent, useEffect, useState } from 'react'
 import type { Card } from '../../../api/src/contract'
 import { call, flag, isMock } from '../api'
 import { Scanner } from '../scan'
-import { ApproachChip, Badge, CommonList, keepCard, nameOf, Portrait, Problem, useAct, useApp, usePoll, who } from '../ui'
-import { Connect } from './Connect'
+import { ApproachChip, Badge, CommonList, ConnectButton, keepCard, nameOf, Portrait, Problem, useAct, useApp, usePoll, who } from '../ui'
+import { Message } from './Connect'
 
 const tagList = (v: string | null) => (v ?? '').split(',').map(Number).filter(Boolean)
 const demoBadges: [string, number][] = [['Amara', 500], ['Diego', isMock ? 501 : 540]] // in the seeded data Diego wears 540: 501 is the paper badge a volunteer claims
@@ -72,7 +72,7 @@ export function ScanScreen() {
               </div>
             </div>
             <CommonList common={c.common} them={nameOf(c)} />
-            {booth ? <BoothNote card={c} /> : cards.length > 1 ? <button type="button" className="btn primary" onClick={() => go(`people/${c.id}`)}>Open {nameOf(c)}'s card</button> : <Connect card={c} onSent={() => go(`people/${c.id}`)} />}
+            {booth ? <BoothNote card={c} /> : cards.length > 1 ? <button type="button" className="btn primary" onClick={() => go(`people/${c.id}`)}>Open {nameOf(c)}'s card</button> : <Message card={c}><ConnectButton card={c} /></Message>}
           </Badge>
         ))}
       </section>
@@ -82,7 +82,7 @@ export function ScanScreen() {
   return (
     <>
       <h1 tabIndex={-1}>Scan a badge</h1>
-      <p className="muted">You will see a silhouette and what you have in common. Nothing else moves until someone taps Share.</p>
+      <p className="muted">You will see a silhouette and what you have in common. Nothing else moves until someone taps Connect.</p>
       <Problem error={act.error} retry={act.retry} />
       {camera ? <div className="viewfinder"><Scanner onCatch={(tags) => onCatch(tags)} /></div> : (
         <form className="paper" onSubmit={lookUp}>

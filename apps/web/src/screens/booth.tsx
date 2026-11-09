@@ -1,7 +1,7 @@
 import { type CSSProperties, type FormEvent, useState } from 'react'
 import type { Pulse, Visitor } from '../../../api/src/contract'
 import { call, type Session } from '../api'
-import { Count, listFields, Portrait, Problem, time, useApp, usePoll } from '../ui'
+import { ContactCard, Count, listFields, Portrait, Problem, time, useAct, useApp, usePoll } from '../ui'
 
 const pct = (n: number) => `${Math.round(n * 100)}%`
 const Stat = ({ label, value, format }: { label: string; value: number; format?: (n: number) => string }) => (
@@ -16,7 +16,7 @@ function VisitorRow({ v, picked, onPick }: { v: Visitor; picked: boolean; onPick
         <b>{v.card.name ?? 'Name not shared'}</b><span className="fit">{v.fit}% fit</span>
         <p>{v.card.interests?.slice(0, 4).map((t) => <span key={t} className="chip">{t}</span>)}</p>
         {v.card.stuckOn && <small>Stuck on: {v.card.stuckOn}</small>}
-        {v.request ? <small className="status">Request {v.request.status === 'pending' ? 'waiting' : v.request.status}</small>
+        {v.request ? <small className="status">{v.card.theyShared ? 'Shared their card' : { request: 'Request waiting', open: 'Chat open', ignored: 'Ignored' }[v.request.status]}</small>
           : <label className="pickme"><input type="checkbox" checked={picked} onChange={(e) => onPick(e.target.checked)} /> Send a request</label>}
       </div>
     </li>
@@ -24,16 +24,17 @@ function VisitorRow({ v, picked, onPick }: { v: Visitor; picked: boolean; onPick
 }
 
 export function LeadsScreen() {
-  const { session, me, say } = useApp()
+  const { session, me, say, go } = useApp()
   const booth = usePoll(() => call(session, 'GET /api/booth'), [session.token])
   const prospects = usePoll(() => call(session, 'GET /api/booth/prospects'), [session.token])
   const [picked, setPicked] = useState<string[]>([])
   const [note, setNote] = useState(me.pitch ?? '')
   const everyone = [...(booth.data?.visitors ?? []), ...(prospects.data?.prospects ?? [])]
   const open = everyone.filter((v) => !v.request).map((v) => v.card.id)
-  const send = (to: string[]) => call(session, 'POST /api/booth/requests', { body: { to, note, attachment: me.attachment } }).then((r) => {
-    say(`Sent ${r.sent} ${r.sent === 1 ? 'request' : 'requests'}. ${r.autoShared} shared right away.`); setPicked([]); booth.reload(); prospects.reload()
-  })
+  const act = useAct()
+  const send = (to: string[]) => act.run(() => call(session, 'POST /api/booth/requests', { body: { to, note, attachment: me.attachment } }).then((r) => {
+    say(`Sent ${r.sent} ${r.sent === 1 ? 'request' : 'requests'}. ${r.autoShared} shared right away.`); setPicked([])
+  }))
   const row = (v: Visitor) => <VisitorRow key={v.card.id} v={v} picked={picked.includes(v.card.id)} onPick={(on) => setPicked(on ? [...picked, v.card.id] : picked.filter((x) => x !== v.card.id))} />
   const s = booth.data?.stats
   return (
@@ -47,19 +48,21 @@ export function LeadsScreen() {
           <li key={l.card.id} className="paper visitor">
             <Portrait card={l.card} size="sm" />
             <div>
-              <b>{l.card.name}</b> <small>{l.card.theyShared?.role} · {time(l.sharedAt)}</small>
-              <p>{l.card.theyShared && Object.values(l.card.theyShared.contact).join(' · ')}</p>
+              <b>{l.card.name ?? 'Name not shared'}</b> <small>{l.card.theyShared?.role} · {time(l.sharedAt)}</small>
+              {l.card.theyShared && <ContactCard they={l.card.theyShared} />}
               {l.note && <blockquote>Won by: “{l.note}”</blockquote>}
+              {l.card.thread && <button type="button" className="btn" onClick={() => go(`inbox/${l.card.id}`)}>Chat</button>}
             </div>
           </li>
         ))}
         {booth.data && !booth.data.leads.length && <li className="paper muted">Nobody yet. Leads appear only when a person chooses to share.</li>}
       </ul>
       <form className="paper composer" onSubmit={(e: FormEvent) => { e.preventDefault(); send(picked) }}>
-        <h2>Send a request</h2>
-        <label>Your note<textarea rows={3} required value={note} onChange={(e) => setNote(e.target.value)} /></label>
+        <h2>Send a message request</h2>
+        <label>Your note <small>the first message they read</small><textarea rows={3} required value={note} onChange={(e) => setNote(e.target.value)} /></label>
         <p className="muted">Carries: {me.attachment?.label ?? 'no attachment'}. They get it whether or not they share.</p>
-        <div className="row"><button className="btn primary" disabled={!picked.length}>Send to {picked.length} picked</button><button type="button" className="btn" disabled={!open.length} onClick={() => send(open)}>Send to all {open.length}</button></div>
+        <Problem error={act.error} retry={act.retry} />
+        <div className="row"><button type="submit" className="btn primary" disabled={act.busy || !picked.length}>{act.busy ? 'Sending…' : `Send to ${picked.length} picked`}</button><button type="button" className="btn" disabled={act.busy || !open.length} onClick={() => send(open)}>Send to all {open.length}</button></div>
       </form>
       <h2>Visitors, best fit first</h2>
       <ul className="results">{booth.data?.visitors.map(row)}</ul>
@@ -104,10 +107,10 @@ export function BoothScreen() {
         <label>Attachment name<input value={label} onChange={(e) => setLabel(e.target.value)} /></label>
         <label>Attachment link<input type="url" value={url} onChange={(e) => setUrl(e.target.value)} /></label>
         <Problem error={problem} />
-        <div className="row end"><button className="btn primary">Save booth</button></div>
+        <div className="row end"><button type="submit" className="btn primary">Save booth</button></div>
       </form>
       <p className="note">You see topics and fit, never a name, until a person shares: {listFields(me.shareFields)} is what you hand over in return.</p>
-      <button className="btn" onClick={signOut}>Sign out</button>
+      <button type="button" className="btn" onClick={signOut}>Sign out</button>
     </>
   )
 }
@@ -127,7 +130,7 @@ export function Chart({ series }: { series: Pulse['series'] }) {
 export const usePulse = (session: Session) => usePoll(() => call(session, 'GET /api/pulse'), [session.token])
 
 export function PulseTotals({ totals }: { totals: Pulse['totals'] }) {
-  return <div className="stats"><Stat label="meetings" value={totals.meetings} /><Stat label="shares" value={totals.shares} /><Stat label="unshares" value={totals.unshares} /><Stat label="booth requests" value={totals.requests} /><Stat label="share rate" value={totals.shareRate} format={pct} /></div>
+  return <div className="stats"><Stat label="meetings" value={totals.meetings} /><Stat label="shares" value={totals.shares} /><Stat label="unshares" value={totals.unshares} /><Stat label="requests" value={totals.requests} /><Stat label="share rate" value={totals.shareRate} format={pct} /></div>
 }
 
 export function PulseScreen() {
@@ -162,7 +165,7 @@ export function PulseScreen() {
           </section>
         </>
       )}
-      <button className="btn" onClick={signOut}>Sign out</button>
+      <button type="button" className="btn" onClick={signOut}>Sign out</button>
     </>
   )
 }

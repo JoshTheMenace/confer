@@ -16,7 +16,8 @@ else if (flag('demo')) (await import('./mock/server')).mock.demo(flag('demo')!)
 const root = document.documentElement
 const dark = matchMedia('(prefers-color-scheme: dark)'), still = matchMedia('(prefers-reduced-motion: reduce)')
 const apply = () => {
-  root.dataset.theme = flag('theme') ?? (dark.matches ? 'dark' : 'light')
+  // Stage is always light: paper phones on a black stage read from the back of the room.
+  root.dataset.theme = flag('theme') ?? (dark.matches && !location.hash.startsWith('#/stage') ? 'dark' : 'light')
   root.classList.toggle('rm', flag('rm') !== null || still.matches)
 }
 apply()

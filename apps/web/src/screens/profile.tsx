@@ -124,18 +124,18 @@ export function Onboarding({ session, onToken }: { session: Session; onToken: (t
         </header>
       )}
       <form onSubmit={submit} className="paper">
-        <p className="steps" aria-label={`Step ${step + 1} of 3`}>{steps.map(([s], i) => <span key={s} aria-current={i === step ? 'step' : undefined}>{i + 1}. {s}</span>)}</p>
+        <p className="steps"><span className="sr">Step {step + 1} of 3. </span>{steps.map(([s], i) => <span key={s} aria-current={i === step ? 'step' : undefined}>{i + 1}. {s}</span>)}</p>
         <h2>{title}</h2>
         <Fields draft={draft} set={(patch) => setDraft((d) => ({ ...d, ...patch }))} />
         <Problem error={problem} />
         <div className="row end">
           {step > 0 && <button type="button" className="btn" onClick={() => setStep(step - 1)}>Back</button>}
-          <button className="btn primary">{step < 2 ? 'Next' : 'Get my badge'}</button>
+          <button type="submit" className="btn primary">{step < 2 ? 'Next' : 'Get my badge'}</button>
         </div>
       </form>
       <section className="demo-in" aria-label="Demo sign-in">
         <h2>{isMock ? 'Or try a demo person' : 'Demo sign-in'}</h2>
-        <div className="row">{Object.values(personas).map(([name, token]) => <button key={token} className="btn" onClick={() => onToken(token)}>{name}</button>)}</div>
+        <div className="row">{Object.values(personas).map(([name, token]) => <button type="button" key={token} className="btn" onClick={() => onToken(token)}>{name}</button>)}</div>
       </section>
     </main>
   )
@@ -160,14 +160,14 @@ export function MeScreen() {
         <div className="tag"><TagSvg id={me.tagId} size={248} /></div>
         <p className="muted">Badge {me.tagId}. Hold this up to be scanned. It shows no personal details.</p>
         <p className="seen"><Silhouette id={me.id} label="Your silhouette" /><span>This is all anyone sees of you until you tap Share.</span></p>
-        <button className="btn" onClick={() => go('print')}>Printable badge sheet</button>
+        <button type="button" className="btn" onClick={() => go('print')}>Printable badge sheet</button>
       </div>
       <form onSubmit={save} className="paper settings">
         {steps.map(([title, Fields]) => <details key={title}><summary>{title}</summary><Fields draft={draft} set={set} /></details>)}
         <Problem error={problem} />
-        <div className="row end"><button className="btn primary">Save changes</button></div>
+        <div className="row end"><button type="submit" className="btn primary">Save changes</button></div>
       </form>
-      <button className="btn" onClick={signOut}>Sign out</button>
+      <button type="button" className="btn" onClick={signOut}>Sign out</button>
     </>
   )
 }
@@ -177,7 +177,7 @@ export function PrintScreen({ me }: { me: Me }) {
   return (
     <>
       <h1 tabIndex={-1}>Printable badges</h1>
-      <div className="row"><button className="btn primary" onClick={() => print()}>Print</button><button className="btn" onClick={() => go('me')}>Back</button></div>
+      <div className="row"><button type="button" className="btn primary" onClick={() => print()}>Print</button><button type="button" className="btn" onClick={() => go('me')}>Back</button></div>
       <BadgeSheet ids={[me.tagId]} />
     </>
   )

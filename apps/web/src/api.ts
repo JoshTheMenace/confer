@@ -36,13 +36,21 @@ export function buildPath(route: string, params: Record<string, string> = {}, qu
 /** The one way the app talks to the server: typed by the contract, real fetch or the in-memory mock. */
 export async function call<K extends keyof Api>(session: Session, route: K, ...[opts]: object extends Opts<K> ? [opts?: Opts<K>] : [opts: Opts<K>]): Promise<Api[K]['res']> {
   const o = (opts ?? {}) as { params?: Record<string, string>; body?: unknown; query?: Record<string, string | undefined> }
-  if (isMock) return (await import('./mock/server')).mock.call(session.token, route, o as never)
+  const data = await (isMock ? (await import('./mock/server')).mock.call(session.token, route, o as never) : send(session, route, o))
+  if (!route.startsWith('GET')) globalThis.dispatchEvent?.(new Event(WROTE))
+  return data
+}
+
+/** Fired after every write, so every poll in the page (both phones on Stage) refreshes at once instead of up to 2 seconds later. */
+export const WROTE = 'confer:wrote'
+
+async function send(session: Session, route: string, o: { params?: Record<string, string>; body?: unknown; query?: Record<string, string | undefined> }) {
   const res = await fetch(buildPath(route, o.params, o.query), {
     method: route.slice(0, route.indexOf(' ')),
     headers: { ...(session.token && { Authorization: `Bearer ${session.token}` }), ...(o.body !== undefined && { 'Content-Type': 'application/json' }) },
     body: o.body === undefined ? undefined : JSON.stringify(o.body),
-  })
+  }).catch(() => { throw new Error('No connection. Check the network and try again.') })
   const data = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(data?.error ?? (res.status === 401 ? 'Please sign in again.' : `Something went wrong (${res.status}). Try again.`))
+  if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : res.status === 401 ? 'Please sign in again.' : `Something went wrong (${res.status}). Try again.`)
   return data
 }

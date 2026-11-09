@@ -30,11 +30,10 @@ const v2 = {
   tokens: { profile: kw, kind: kw, tagId: { type: 'integer' } }, // _id = token hash
   meetings: { scanner: kw, scanned: kw, kind: kw /* peer | booth */, source: kw, at: date, common: { properties: { kind: kw, mine: kw, theirs: kw } } }, // _id = scanner_scanned
   shares: { from: kw, to: kw, fields: kw, via: kw /* manual | auto | request */, note: text, at: date }, // _id = from_to; deleting it is Unshare
-  requests: { booth: kw, attendee: kw, note: { ...text, fields: { raw: kw } }, attachment: { properties: { url: stored, label: text } }, why: { properties: { kind: kw, mine: kw, theirs: kw } }, status: kw, source: kw, createdAt: date, expiresAt: date }, // _id = booth_attendee
-  mutes: { attendee: kw, booth: kw, at: date }, // _id = attendee_booth
+  mutes: { attendee: kw, booth: kw, at: date }, // _id = muter_muted. The field names are from when only booths could be muted: `booth` is whoever was muted
   // One doc per pair (_id = the two profile ids, sorted, joined by '_'). Messages live inside it, so a chat is one real-time get.
   threads: {
-    a: kw, b: kw, startedBy: kw, status: kw /* request | open | ignored */, source: kw, createdAt: date, expiresAt: date, lastAt: date, readA: date, readB: date,
+    a: kw, b: kw, startedBy: kw, kind: kw /* booth: a booth started it */, shared: bool /* the recipient shared because of it */, status: kw /* request | open | ignored */, source: kw, createdAt: date, expiresAt: date, lastAt: date, readA: date, readB: date,
     why: { properties: { kind: kw, mine: kw, theirs: kw } }, attachment: { properties: { url: stored, label: text } },
     firstText: { type: 'keyword', ignore_above: 512 }, // exact first message: lets a booth compare which pitch earns shares
     messages: { type: 'object', enabled: false }, // [{ id, from, text, at }]: stored, never indexed or searchable
@@ -44,6 +43,9 @@ const v2 = {
 } as const
 /** Index names: `ix.profiles`, `ix.vault`, ... Always go through this, never a string literal. */
 export const ix = Object.fromEntries(Object.keys(v2).map((name) => [name, prefix + name])) as { [K in keyof typeof v2]: string }
+
+/** Makes a brand-new doc searchable now instead of within 5 seconds. Never awaited: the write is already readable by id. */
+export const refreshSoon = (index: string) => void es.indices.refresh({ index }).catch(() => {})
 
 export async function ensureIndices() {
   for (const [name, properties] of Object.entries(v2)) {

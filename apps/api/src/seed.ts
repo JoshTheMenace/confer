@@ -5,7 +5,7 @@ import { notionists } from '@dicebear/collection'
 import { createAvatar } from '@dicebear/core'
 import { hashToken } from './auth.js'
 import { commonOf, embed } from './common.js'
-import { expiresAt, pairId, swap } from './consent.js'
+import { expiresAt, pairId, swap, threadId, type ThreadDoc } from './consent.js'
 import type { Common, ContactField } from './contract.js'
 import { es, ensureIndices, ix } from './es.js'
 
@@ -52,7 +52,7 @@ Mariam Ragnar|she/her|ML Researcher|RAG,LLM evaluation,Data|collaborators,feedba
 Tevita Wanderly|he/him|Student|Curiosity,Career change,Learning|mentoring,internships|First conference ever, here to learn what all these acronyms mean.
 Zhao Observa|she/her|Founder|Observability,OpenTelemetry,AI|investors,peers|Building an open source tool that explains traces in plain language.|Explaining a trace to someone who has never seen one`.trim().split('\n')
 
-type Seeded = { id: string; handle?: string; tagId: number; kind: string; displayName: string; interests: string[]; shareFields: ContactField[]; openToBooths: boolean; [field: string]: unknown }
+type Seeded = { id: string; handle?: string; tagId: number; kind: string; displayName: string; interests: string[]; shareFields: ContactField[]; openToBooths: boolean; attachment?: { url: string; label: string }; [field: string]: unknown }
 const commPrefs = ["I'm Deaf, text me", 'Happy to chat anytime', 'Prefer a quick hello, then DMs', 'Low vision, please introduce yourself out loud', 'Async is best, leave a note', 'Quiet corner chats please']
 const fieldSets: ContactField[][] = [['email', 'linkedin'], ['linkedin'], ['email', 'linkedin', 'github']]
 const attendees = people.map((line, i): Seeded => {
@@ -86,7 +86,7 @@ const organizer: Seeded = {
 const [amara, diego] = attendees, elastic = booths[0]
 
 // History spread over the last 30 minutes, so lists, booth stats and the organizer pulse are alive.
-// It never includes Amara meeting Diego, or any booth scanning, asking or being muted by either of them: the demo does that live.
+// It never includes Amara meeting or messaging Diego, or the Elastic booth scanning or messaging Amara: the demo does that live.
 await embed([...attendees, ...booths].flatMap((p) => p.interests), 30_000).catch(() => console.warn('Embeddings unavailable: seeding same-tag matches only'))
 const now = Date.now(), ago = (minutes: number) => new Date(now - minutes * 60_000).toISOString()
 const meetings = new Map<string, { scanner: Seeded; scanned: Seeded; kind: string; source: string; at: string; common: Common[] }>()
@@ -110,10 +110,33 @@ const requests = [
   ...visitors.map(({ booth, attendee, k }) => ({ booth, attendee, source: 'scan', status: outcomes[k % 5], note: notes[k % 2], minutes: 27 - k * 1.5 })),
   ...prospects.map((attendee, k) => ({ booth: booths[k % 4], attendee, source: 'match', status: outcomes[(k + 1) % 5], note: notes[1], minutes: 6 - k })),
 ]
-const whys = await Promise.all(requests.map(async ({ booth, attendee }) => {
-  const meeting = meetings.get(pairId(booth.id, attendee.id))
-  return meeting ? swap(meeting.common) : commonOf(attendee.interests, booth.interests)
-}))
+// Every request is a chat. Lines alternate, starting with the sender; a request nobody answered has one line.
+const threads = new Map<string, ThreadDoc>()
+const thread = async (from: Seeded, to: Seeded, status: ThreadDoc['status'], minutes: number, lines: string[], shared?: true) => {
+  const mine = meetings.get(pairId(from.id, to.id)), theirs = meetings.get(pairId(to.id, from.id))
+  const [a, b] = [from.id, to.id].sort(), at = (i: number) => ago(minutes - i * 0.3), last = at(lines.length - 1)
+  threads.set(threadId(a, b), {
+    a, b, startedBy: from.id, kind: from.kind === 'sponsor' ? 'booth' : 'peer', status, source: mine || theirs ? 'scan' : 'match',
+    why: mine?.common ?? (theirs ? swap(theirs.common) : await commonOf(from.interests, to.interests)),
+    attachment: from.attachment, firstText: lines[0], createdAt: at(0), lastAt: last, expiresAt: expiresAt(), shared,
+    // A waiting request is unread on the recipient's side.
+    ...(status === 'request' ? { [from.id === a ? 'readA' : 'readB']: last } : { readA: last, readB: last }),
+    messages: lines.map((text, i) => ({ id: `${a}_${b}_${i}`, from: i % 2 ? to.id : from.id, text, at: at(i) })),
+  })
+}
+for (const r of requests)
+  await thread(r.booth, r.attendee, r.status === 'shared' ? 'open' : r.status === 'pending' ? 'request' : 'ignored', r.minutes, r.status === 'shared' ? [r.note, 'Yes please. Sharing my card now.'] : [r.note], r.status === 'shared' || undefined)
+const talk = [
+  ['Good to meet you! Want to compare notes on tracing after lunch?', 'Yes please. I am free at one.', 'Great, see you by the coffee stand.'],
+  ['Hello! It looks like we both care about platform teams. How big is yours?', 'Six people and growing. Yours?'],
+  ['Nice to meet you. Which talk was it you told me about?', 'The one on golden paths, room B at two.', 'Thank you!', 'Any time. Save me a seat.'],
+  ['It is loud in here, so I am writing instead. Do you have a minute for a question?', 'Sure, text works well for me too.', 'How do you handle schema changes?', 'Slowly, and with a lot of tests.', 'Ha, same here.'],
+]
+const peers = [...meetings.values()].filter((m) => m.kind === 'peer' && m.scanner.tagId > 501 && m.scanned.tagId > 501).slice(20, 28)
+for (const [k, m] of peers.entries()) await thread(m.scanner, m.scanned, 'open', 20 - k * 2, talk[k % talk.length])
+// Two requests wait for Amara, so the Inbox is alive when the demo starts: one from a person, one from a booth with an attachment.
+await thread(attendees[9], amara, 'request', 4, ['Hi Amara! I think we both work with eBPF. Could I ask how you find dropped packets between clusters?'])
+await thread(booths[1], amara, 'request', 2, ['We wrote a short guide on tracing across many services. It is yours either way.'])
 const mutes = requests.filter((r) => r.status === 'ignored').slice(0, 3)
 const shares = [
   ...[...meetings.values()].filter((m) => m.kind === 'peer').slice(0, 17).map((m, k) => ({ from: k % 2 ? m.scanner : m.scanned, to: k % 2 ? m.scanned : m.scanner, via: 'manual', note: undefined as string | undefined, minutes: 26 - k * 1.5 })),
@@ -137,10 +160,7 @@ const res = await es.bulk({
       }) : []),
     ]),
     ...[...meetings].flatMap(([id, m]) => index(ix.meetings, id, { ...m, scanner: m.scanner.id, scanned: m.scanned.id })),
-    ...requests.flatMap((r, k) => index(ix.requests, pairId(r.booth.id, r.attendee.id), {
-      booth: r.booth.id, attendee: r.attendee.id, note: r.note, attachment: r.booth.attachment, status: r.status, source: r.source,
-      why: whys[k], createdAt: ago(r.minutes), expiresAt: expiresAt(),
-    })),
+    ...[...threads].flatMap(([id, t]) => index(ix.threads, id, t)),
     ...mutes.flatMap((r) => index(ix.mutes, pairId(r.attendee.id, r.booth.id), { attendee: r.attendee.id, booth: r.booth.id, at: ago(r.minutes - 1) })),
     ...shares.flatMap((s, k) => [
       ...index(ix.shares, pairId(s.from.id, s.to.id), { from: s.from.id, to: s.to.id, fields: s.from.shareFields, via: s.via, note: s.note, at: ago(s.minutes) }),
@@ -152,17 +172,18 @@ const res = await es.bulk({
 if (res.errors) throw new Error(`seed failed: ${res.items.filter((it) => it.index?.error).length} bulk errors`)
 
 // The demo depends on these, so a reset that breaks one fails loudly instead of on stage.
-const peers = await commonOf(amara.interests, diego.interests), booth = await commonOf(elastic.interests, amara.interests)
+const both = await commonOf(amara.interests, diego.interests), booth = await commonOf(elastic.interests, amara.interests)
 const involves = (...ids: string[]) => [...meetings.keys()].some((id) => id === pairId(ids[0], ids[1]) || id === pairId(ids[1], ids[0]))
 const invariants = {
-  'Amara and Diego have not met': !involves(amara.id, diego.id),
-  'Amara and Diego have 3+ things in common, one related': peers.length >= 3 && peers.some((c) => c.kind === 'related'),
-  'the Elastic booth has not scanned Amara': !involves(elastic.id, amara.id),
+  'Amara and Diego have not met and have no thread': !involves(amara.id, diego.id) && !threads.has(threadId(amara.id, diego.id)),
+  'Amara and Diego have 3+ things in common, one related': both.length >= 3 && both.some((c) => c.kind === 'related'),
+  'the Elastic booth has not scanned Amara and has no thread with her': !involves(elastic.id, amara.id) && !threads.has(threadId(elastic.id, amara.id)),
   'the Elastic booth and Amara have 2+ things in common': booth.length >= 2,
-  'neither is muted, asked or auto-sharing': ![...mutes, ...requests].some((r) => r.attendee === amara || r.attendee === diego) && amara.shareFields.length > 0 && diego.shareFields.length > 0,
+  'Amara has 2 message requests waiting': [...threads.values()].filter((t) => t.status === 'request' && t.startedBy !== amara.id && [t.a, t.b].includes(amara.id)).length === 2,
+  'neither is muted or auto-sharing': !mutes.some((r) => r.attendee === amara || r.attendee === diego) && amara.shareFields.length > 0 && diego.shareFields.length > 0,
 }
 console.table(invariants)
 if (Object.values(invariants).includes(false)) throw new Error('demo invariants do not hold')
-console.log(`Seeded ${attendees.length} attendees, ${booths.length} booths, 1 organizer, ${meetings.size} meetings, ${shares.length} shares, ${requests.length} requests, ${mutes.length} mutes.`)
-console.log('Amara and Diego:', peers.map((c) => `${c.mine} ${c.kind === 'same' ? '=' : '~'} ${c.theirs}`).join(', '))
+console.log(`Seeded ${attendees.length} attendees, ${booths.length} booths, 1 organizer, ${meetings.size} meetings, ${shares.length} shares, ${threads.size} threads, ${mutes.length} mutes.`)
+console.log('Amara and Diego:', both.map((c) => `${c.mine} ${c.kind === 'same' ? '=' : '~'} ${c.theirs}`).join(', '))
 console.table([amara, diego, ...booths, organizer].map((p) => ({ persona: p.displayName, kind: p.kind, tagId: p.tagId, token: `demo-${p.tagId}` })))

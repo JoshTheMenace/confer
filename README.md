@@ -57,7 +57,23 @@ flowchart LR
 
 Service, image and namespace names still say `dex`, the working title from the first hour. Renaming them late in the day was a risk with no benefit.
 
-## For judges: where the evidence is
+## For judges: the evidence, in numbers
+
+Every number below was measured today on the running app, and every row links to the pull request that made it.
+
+| Sponsor tool | What it found or proved | The number | Proof |
+|---|---|---|---|
+| **Dash0 Agent0** | Every request began by re-reading the sign-in from Elasticsearch: 707 of 720 requests, for only 4 distinct tokens. We cached it. | The three most-polled routes went from **p50 791 ms to 344 ms** and **p95 1,848 ms to 827 ms** (Dash0 spans, 25 minutes before against 8 minutes after). | [PR #20](https://github.com/JoshTheMenace/confer/pull/20), [Agent0's answer](docs/evidence/agent0-token-lookup.md), [incident 5](docs/incidents.md) |
+| **Dash0 Agent0** | Every save waited on a search refresh. | Average save **4.78 s to 1.00 s** (first version of the API). | [PR #10](https://github.com/JoshTheMenace/confer/pull/10), [evidence](docs/evidence/agent0-latency.md) |
+| **Dash0 tracing** | "Time to forget": Unshare is one traced span, from the tap to the card being gone. | **p95 0.83 s** over the afternoon. Every deletion receipt carries that trace id. | [docs/observability.md](docs/observability.md) |
+| **Kubernetes RBAC** | `kubectl auth can-i export contacts.confer.dev/seed-502 --as booth:seed-580 -n booth-seed-580` before and after an attendee taps Unshare. | **yes, then no 3.9 s later.** The CSV export dropped the row on the very next request (2 rows to 1), because Elasticsearch answers first. Sharing again: yes after 7.8 s. | [PR #19](https://github.com/JoshTheMenace/confer/pull/19), [docs/kubernetes-consent.md](docs/kubernetes-consent.md) |
+| **Radar AI investigation** | The first deploy: every pod stuck in `ErrImagePull`. Radar named the cause and the fix. | **All pods failing to 0.** | [PR #6](https://github.com/JoshTheMenace/confer/pull/6), [evidence](docs/evidence/radar-errimagepull.json) |
+| **Radar audit (MCP)** | Hardening the namespace, then again after the consent operator was added. | **17 findings to 2**, then **7 to 5** (0 high; the 5 left are accepted, with reasons). | [PR #12](https://github.com/JoshTheMenace/confer/pull/12), [PR #22](https://github.com/JoshTheMenace/confer/pull/22), [docs/radar.md](docs/radar.md) |
+| **Gitar** | Reviewed the API contract before any feature code existed and found that people search could be used to read what others wrote about themselves. Earlier it blocked a merge where sponsors could read interests attendees had hidden. | **22 pull requests reviewed, 27 inline findings**, and fixes pushed by Gitar itself on 14 of them, including one for a CI failure it diagnosed. We pushed back three times with evidence. | [PR #11](https://github.com/JoshTheMenace/confer/pull/11), [PR #4](https://github.com/JoshTheMenace/confer/pull/4), [PR #13](https://github.com/JoshTheMenace/confer/pull/13), [PR #21](https://github.com/JoshTheMenace/confer/pull/21), [evidence](docs/evidence/gitar-ci.md) |
+| **Elasticsearch** | "Tracing across 200 services" returns the right talk first, plus matching booths and 6 people who opted in, from one round trip. Embedding similarity could not tell related topics apart, so a reranker judges them. | Cosine scored React and Rust (**0.51**) above OpenTelemetry and Distributed tracing (**0.49**); the reranker gets both right. The search answers in under a second. | [PR #14](https://github.com/JoshTheMenace/confer/pull/14), [PR #17](https://github.com/JoshTheMenace/confer/pull/17), [evidence](docs/evidence/search.md) |
+
+## For judges: where each track lives in the code
+
 
 | Track | What to look at |
 |---|---|

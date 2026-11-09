@@ -1,5 +1,8 @@
 // The consent operator: runs as its own Deployment and keeps Kubernetes RBAC in step with the shares in Elasticsearch.
 // A share to a booth becomes a Role + RoleBinding in that booth's namespace; Unshare or expiry deletes them.
+import { writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { trace } from '@opentelemetry/api'
 import { allShares, bulk, pairId } from './consent.js'
@@ -48,6 +51,7 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) process.on(signal, () => st
 log.info({ every }, 'consent operator started')
 while (!stop.signal.aborted) {
   await pass().catch((err) => log.error({ err: err?.message }, 'reconcile failed'))
+  writeFileSync(join(tmpdir(), 'alive'), '') // the heartbeat the Kubernetes probes read: the loop is turning, even when a pass failed
   await sleep(every, undefined, { signal: stop.signal }).catch(() => {})
 }
 log.info('consent operator stopped')

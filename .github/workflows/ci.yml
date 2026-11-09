@@ -12,8 +12,18 @@ jobs:
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      - run: pnpm lint # accessibility gate for the web app (biome.json)
       - run: pnpm test
       - run: pnpm build
+
+  # Never merge broken: a pull request must still produce deployable images and valid manifests.
+  deployable:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: kubectl kustomize k8s/base > /dev/null && kubectl kustomize k8s/local > /dev/null
+      - run: docker build --target api -t dex-api:ci . && docker build --target web -t dex-web:ci .
 
   images:
     if: github.ref == 'refs/heads/main'

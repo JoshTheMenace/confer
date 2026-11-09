@@ -79,7 +79,7 @@ export const pulse = new Hono<{ Variables: { me: Me } }>().use(auth).get('/', as
       requests: total(requests), shareRate: rate(requests.aggregations?.shared?.doc_count, total(requests)),
     },
     series: Array.from({ length: 30 }, (_, i) => start + i * MINUTE).map((t) => ({ t: new Date(t).toISOString(), scans: scansAt.get(t) ?? 0, shares: sharesAt.get(t) ?? 0 })),
-    topInterests: (profiles.aggregations?.attendees?.top.buckets ?? []).map((b) => ({ term: String(b.key), count: b.doc_count })),
+    topInterests: organizer ? (profiles.aggregations?.attendees?.top.buckets ?? []).map((b) => ({ term: String(b.key), count: b.doc_count })) : [],
     // Counts per booth only: nothing here says who scanned, shared or muted.
     ...(organizer && {
       booths: (boothProfiles.hits?.hits ?? []).map(({ _id, _source }) => {

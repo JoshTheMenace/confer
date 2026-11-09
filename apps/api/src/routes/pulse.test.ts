@@ -42,7 +42,7 @@ test('an attendee gets totals, a 30-minute series and live health, from one Elas
   expect(body.series).toHaveLength(30)
   expect(body.series[29]).toEqual({ t: new Date(thisMinute()).toISOString(), scans: 3, shares: 1 })
   expect(body.series[0]).toMatchObject({ scans: 0, shares: 0 })
-  expect(body.topInterests).toEqual([{ term: 'Tracing', count: 9 }])
+  expect(body.topInterests).toEqual([])
   expect(body.health).toEqual({ source: 'dash0', p95Ms: 420, errorRate: 0.01, requestsPerMin: 30, slo: { name: 'confer-api-fast', target: 0.95, current: 0.97, ok: true } })
   expect(vi.mocked(fetch).mock.calls[0][1]).toMatchObject({ headers: { authorization: 'Bearer otlp-token' } })
   expect(es.msearch).toHaveBeenCalledTimes(1)
@@ -50,13 +50,16 @@ test('an attendee gets totals, a 30-minute series and live health, from one Elas
   expect(searches.filter((_, i) => i % 2 === 0).map((s) => s.index)).toEqual(['test_profiles', 'test_meetings', 'test_shares', 'test_requests', 'test_receipts'])
 })
 
-test('per-booth numbers are for organizers only', async () => {
+test('booth numbers and interest aggregates are for organizers only', async () => {
   expect((await (await get('attendee')).json()).booths).toBeUndefined()
   expect((await (await get('sponsor')).json()).booths).toBeUndefined()
-  expect((await (await get('organizer')).json()).booths).toEqual([
+  expect((await (await get('sponsor')).json()).topInterests).toEqual([])
+  const body = await (await get('organizer')).json()
+  expect(body.booths).toEqual([
     { id: 'b1', name: 'Dash0', scans: 5, requests: 4, shared: 1, shareRate: 0.25, mutes: 1 },
     { id: 'b2', name: 'Elastic', scans: 0, requests: 0, shared: 0, shareRate: 0, mutes: 0 },
   ])
+  expect(body.topInterests).toEqual([{ term: 'Tracing', count: 9 }])
 })
 
 test('Dash0 being down or slow does not fail the pulse, and is not asked again for 15 seconds', async () => {

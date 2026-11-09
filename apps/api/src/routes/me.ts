@@ -92,6 +92,7 @@ export const me = new Hono<{ Variables: { me: Session } }>()
         void embed(profile.interests, 20_000).catch(() => {})
       }
     }
+    // The conditional profile write goes first: if it loses a race, nothing else (contact, photo) is saved either.
     try {
       await es.update({ index: ix.profiles, id, ...(interestCondition ?? {}), doc: { ...profile, ...(photo !== undefined && { hasPhoto: !!photo }), ...(interestEdits && { interestEdits }) } })
     } catch (err) {

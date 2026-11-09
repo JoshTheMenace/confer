@@ -73,7 +73,8 @@ export async function bulk(operations: object[]) {
 
 // The single vault read path. A read for someone else needs the owner's share doc and leaves an `opened` receipt:
 // one per owner and viewer (stable id), stamped with the latest read. People polls every 2 seconds and a write costs
-// about 0.5s, so the stamp is refreshed at most once a minute.
+// about 0.5s, so the stamp is refreshed at most once a minute per share. The key includes the share's own time,
+// so an unshare followed by a new share is always stamped on its first read.
 const stamped = new Map<string, number>()
 const stampKey = (owner: string, viewer: string, share?: Share) => `${pairId(owner, viewer)}@${share?.at ?? ''}`
 export function openVault(viewer: string, reads: { owner: string; share?: Share }[]): Promise<Map<string, Vault>> {

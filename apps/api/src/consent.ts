@@ -1,100 +1,141 @@
-import type { estypes } from '@elastic/elasticsearch'
-import { es } from './es.js'
+import type { Attachment, BoothRequest, Card, Common, Contact, ContactField, Kind, Profile, Receipt } from './contract.js'
+import { es, ix } from './es.js'
+import { shares, span, traceId, vaultReads } from './telemetry.js'
 
-export const contactFields = ['email', 'linkedin', 'github'] as const
-export const statuses = ['pending', 'deferred', 'granted', 'denied'] as const
-export const decisions = { now: 'granted', later: 'deferred', never: 'denied' } as const
-export type ContactField = (typeof contactFields)[number]
-export type Status = (typeof statuses)[number]
-export type Contact = Partial<Record<ContactField, string>>
-export type Viewer = { id: string; kind: 'attendee' | 'sponsor' }
-export type Profile = Viewer & {
-  tagId: number
-  displayName: string; pronouns?: string; approach: 'open' | 'ask' | 'quiet'; commPref?: string
-  role?: string; interests: string[]; lookingFor: string[]; about?: string
-  interestsVisibleTo: ('peers' | 'sponsors')[]; discoverable: boolean
-}
-export type Card = Viewer & {
-  tagId: number
-  badge: Pick<Profile, 'displayName' | 'pronouns' | 'approach' | 'commPref'>
-  interests?: Pick<Profile, 'role' | 'interests' | 'lookingFor' | 'about'>
-  unlocked: ContactField[] // contact fields this viewer may open
-  contact?: Contact
-}
-export type ConsentRequest = { sponsor: string; attendee: string; fields: ContactField[]; status: Status; createdAt: string; expiresAt: string }
+export type Viewer = { id: string; kind: Kind; starred?: string[] }
+export type Meeting = { scanner: string; scanned: string; kind: 'peer' | 'booth'; source: string; at: string; common: Common[] }
+export type Share = { from: string; to: string; fields: ContactField[]; via: 'manual' | 'auto' | 'request'; note?: string; at: string }
+export type Vault = Contact & { photo?: string | null }
+/** Everything the lens needs to know about one viewer and one subject. */
+export type Relation = { subject: Profile; mine?: Meeting; theirs?: Meeting; shareIn?: Share; shareOut?: Share; muted?: boolean; vault?: Vault }
 
-// Deterministic ids make catches and requests idempotent (create fails with 409 on repeats).
+// Deterministic ids make meetings, shares, requests and mutes idempotent and readable by id (real-time, no search refresh).
 export const pairId = (from: string, to: string) => `${from}_${to}`
+export const swap = (common: Common[] = []): Common[] => common.map((c) => ({ kind: c.kind, mine: c.theirs, theirs: c.mine }))
+export const toKind = (p: { kind: Kind }) => (p.kind === 'sponsor' ? 'booth' : 'peer')
+export const eventEndsAt = () => Date.parse(process.env.EVENT_ENDS_AT ?? '2026-11-09T18:30:00-07:00')
+export const expiresAt = () => new Date(eventEndsAt() + 7 * 864e5).toISOString()
 
-export const expiresAt = (eventEndsAt = process.env.EVENT_ENDS_AT ?? '2026-11-09T18:30:00-07:00') =>
-  new Date(Date.parse(eventEndsAt) + 7 * 864e5).toISOString()
+/** The attendee's own rule, never silence: starred booths, or booths with 2+ things in common. */
+export const autoShares = (attendee: Profile, boothId: string, common: Common[]) =>
+  attendee.kind === 'attendee' &&
+  ((attendee.autoShare === 'starred' && !!attendee.starred?.includes(boothId)) || (attendee.autoShare === 'matching' && common.length >= 2))
 
-export const lowestFreeTag = (taken: number[], max = 500) => {
-  const used = new Set(taken)
-  for (let t = 0; t < max; t++) if (!used.has(t)) return t
-}
+/** A booth's 0 to 100 fit for one attendee: what they have in common, plus a bump if the attendee starred the booth. */
+export const fitOf = (common: Common[], starred: boolean) =>
+  Math.min(100, common.reduce((n, c) => n + (c.kind === 'same' ? 25 : 15), 0) + (starred ? 20 : 0))
 
-export const tally = (all: Status[]) => Object.fromEntries(statuses.map((s) => [s, all.filter((x) => x === s).length])) as Record<Status, number>
-
-// The only who-sees-what rule. Badge: always. Interests: if shared with the viewer's audience.
-// Contact: self, a mutual catch between peers, or (sponsors) exactly the granted fields.
-export function cardFor({ subject: s, viewer, mutual = false, grantedFields = [] }: { subject: Profile; viewer: Viewer; mutual?: boolean; grantedFields?: ContactField[] }): Card {
-  const self = s.id === viewer.id
-  const audience = viewer.kind === 'sponsor' ? 'sponsors' : 'peers'
+// The only who-sees-what rule (docs/design.md, "Privacy rules"). Pure: everything it may reveal is passed in.
+export function cardFor(viewer: Viewer, { subject: s, mine, theirs, shareIn, shareOut, muted, vault = {} }: Relation): Card {
+  const attendee = s.kind === 'attendee', booth = viewer.kind === 'sponsor'
+  const at = [mine?.at, theirs?.at].filter((t) => t !== undefined).sort().at(-1)
   return {
     id: s.id, tagId: s.tagId, kind: s.kind,
-    badge: { displayName: s.displayName, pronouns: s.pronouns, approach: s.approach, commPref: s.commPref },
-    ...((self || s.interestsVisibleTo?.includes(audience)) && { interests: { role: s.role, interests: s.interests ?? [], lookingFor: s.lookingFor ?? [], about: s.about } }),
-    unlocked: contactFields.filter((f) => self || (viewer.kind === 'sponsor' ? grantedFields.includes(f) : mutual)),
+    name: attendee && booth && !s.boothsSeeName && !shareIn ? null : s.displayName,
+    pronouns: s.pronouns, approach: s.approach, commPref: s.commPref,
+    common: mine?.common ?? swap(theirs?.common),
+    ...(at && { met: { at, by: mine && theirs ? 'both' : mine ? 'me' : 'them' } }),
+    ...(shareIn && {
+      theyShared: {
+        at: shareIn.at, fields: shareIn.fields, role: s.role, photo: vault.photo ?? undefined,
+        contact: Object.fromEntries(shareIn.fields.flatMap((f) => (vault[f] ? [[f, vault[f]]] : []))),
+      },
+    }),
+    ...(shareOut && { iShared: { at: shareOut.at, fields: shareOut.fields } }),
+    // An attendee's topics reach a booth they are open to, never a peer.
+    ...(attendee && booth && s.openToBooths && { interests: s.interests, role: s.role, about: s.about, stuckOn: s.stuckOn }),
+    ...(s.kind === 'sponsor' && {
+      interests: s.interests, about: s.about, pitch: s.pitch, attachment: s.attachment,
+      starred: !!viewer.starred?.includes(s.id), muted: !!muted,
+    }),
   }
 }
 
-// Sponsor aggregates only count attendees who shared interests with sponsors.
-export const sponsorAggQuery = (caught: string[]) => ({
-  index: 'profiles', size: 0,
-  query: { bool: { filter: [{ ids: { values: caught } }, { term: { kind: 'attendee' } }, { term: { interestsVisibleTo: 'sponsors' } }] } },
-  aggs: { interests: { terms: { field: 'interests', size: 20 } }, lookingFor: { terms: { field: 'lookingFor', size: 20 } } },
-})
-
-export async function findProfiles(query: estypes.QueryDslQueryContainer, size = 10): Promise<Profile[]> {
-  const res = await es.search<Omit<Profile, 'id'>>({ index: 'profiles', size, query, _source_excludes: ['tokenHash'] })
-  return res.hits.hits.map((h) => ({ ...h._source!, id: h._id! }))
+type Ref = { _index: string; _id: string }
+/** Real-time reads by id across indexes; a missing doc is `undefined`. `tokenHash` never leaves Elasticsearch. */
+export async function sources(docs: Ref[]): Promise<any[]> {
+  if (!docs.length) return []
+  const res = await es.mget<any>({ docs, _source_excludes: ['tokenHash'] })
+  return res.docs.map((d) => ('found' in d && d.found ? d._source : undefined))
 }
-
-// By id is a real-time mget, so profiles written a moment ago are found without waiting for a refresh.
 export async function profilesById(ids: string[]): Promise<Profile[]> {
-  if (!ids.length) return []
-  const res = await es.mget<Omit<Profile, 'id'>>({ index: 'profiles', ids: [...new Set(ids)], _source_excludes: ['tokenHash'] })
-  return res.docs.flatMap((d) => ('found' in d && d.found ? [{ ...d._source!, id: d._id }] : []))
+  const unique = [...new Set(ids)]
+  return (await sources(unique.map((_id) => ({ _index: ix.profiles, _id })))).flatMap((p, i) => (p ? [{ ...p, id: unique[i] }] : []))
 }
 
-export const cardsById = async (viewer: Viewer, ids: string[]) =>
-  new Map((await profilesById(ids)).map((p) => [p.id, cardFor({ subject: p, viewer })]))
-
-// The single vault read path: callers pass fields cardFor unlocked; every read leaves a receipt.
-export async function openVault(attendee: string, viewer: string, fields: ContactField[]): Promise<Contact> {
-  const contact = (await es.get<Contact>({ index: 'vault', id: attendee, _source_includes: fields }, { ignore: [404] }))._source ?? {}
-  // Receipt = what was actually seen (only filled-in fields), one per viewer and field set, stamped with the latest read.
-  const seen = fields.filter((f) => contact[f])
-  if (viewer !== attendee && seen.length)
-    await es.index({ index: 'receipts', id: `${attendee}_${viewer}_${seen.join(',')}`, document: { attendee, viewer, fields: seen, at: new Date().toISOString() } })
-  return contact
+export async function bulk(operations: object[]) {
+  if (!operations.length) return
+  const res = await es.bulk({ operations })
+  // 409 is a repeated `create`: the first write stands, which is what makes scans idempotent.
+  const failed = res.items.filter((i) => Object.values(i)[0]?.error && Object.values(i)[0]?.status !== 409).length
+  if (failed) throw new Error(`bulk write failed: ${failed} of ${res.items.length}`)
 }
 
-export const reveal = async (card: Card, viewer: string): Promise<Card> =>
-  card.unlocked.length ? { ...card, contact: await openVault(card.id, viewer, card.unlocked) } : card
-
-// Current cards for many subjects: mutual = they caught me back; grants = my granted requests to them.
-export async function cardsFor(viewer: Viewer, subjects: Profile[]) {
-  if (!subjects.length) return []
-  const found = (d: estypes.MgetResponseItem<any>) => ('found' in d && d.found ? d._source : undefined)
-  const [back, grants] = await Promise.all([
-    es.mget({ index: 'catches', ids: subjects.map((s) => pairId(s.id, viewer.id)) }),
-    es.mget<ConsentRequest>({ index: 'consent_requests', ids: subjects.map((s) => pairId(viewer.id, s.id)) }),
-  ])
-  return Promise.all(subjects.map((subject, i) => {
-    const grant: ConsentRequest | undefined = found(grants.docs[i])
-    const grantedFields = grant?.status === 'granted' ? grant.fields : []
-    return reveal(cardFor({ subject, viewer, mutual: !!found(back.docs[i]), grantedFields }), viewer.id)
-  }))
+// The single vault read path. A read for someone else needs the owner's share doc and leaves an `opened` receipt:
+// one per owner and viewer (stable id), stamped with the latest read. People polls every 2 seconds and a write costs
+// about 0.5s, so the stamp is refreshed at most once a minute per share. The key includes the share's own time,
+// so an unshare followed by a new share is always stamped on its first read.
+const stamped = new Map<string, number>()
+const stampKey = (owner: string, viewer: string, share?: Share) => `${pairId(owner, viewer)}@${share?.at ?? ''}`
+export function openVault(viewer: string, reads: { owner: string; share?: Share }[]): Promise<Map<string, Vault>> {
+  const allowed = reads.filter((r) => r.owner === viewer || (r.share?.from === r.owner && r.share.to === viewer))
+  if (!allowed.length) return Promise.resolve(new Map())
+  return span('vault.read', { count: allowed.length }, async () => {
+    const at = new Date().toISOString()
+    const due = allowed.filter((r) => r.owner !== viewer && Date.now() - (stamped.get(stampKey(r.owner, viewer, r.share)) ?? 0) > 60_000)
+    const [vaults] = await Promise.all([
+      sources(allowed.map((r) => ({ _index: ix.vault, _id: r.owner }))),
+      bulk(due.flatMap((r) => [
+        { index: { _index: ix.receipts, _id: `${pairId(r.owner, viewer)}_opened` } },
+        { owner: r.owner, who: viewer, type: 'opened', fields: r.share!.fields, at, traceId: traceId() },
+      ])),
+    ])
+    for (const r of due) stamped.set(stampKey(r.owner, viewer, r.share), Date.now())
+    for (const r of allowed) vaultReads.add(1, { reason: r.owner === viewer ? 'self' : 'share' })
+    return new Map(allowed.map((r, i) => [r.owner, vaults[i] ?? {}]))
+  })
 }
+
+/** The viewer's own profile, plus each person and how the two stand right now. One read by id, so a share or unshare shows at once. */
+export async function relations(viewer: Viewer, ids: string[]): Promise<{ me: Profile; rels: Relation[] }> {
+  const [me, ...found] = await sources([{ _index: ix.profiles, _id: viewer.id }, ...ids.flatMap((id) => [
+    { _index: ix.profiles, _id: id },
+    { _index: ix.meetings, _id: pairId(viewer.id, id) }, { _index: ix.meetings, _id: pairId(id, viewer.id) },
+    { _index: ix.shares, _id: pairId(id, viewer.id) }, { _index: ix.shares, _id: pairId(viewer.id, id) },
+    { _index: ix.mutes, _id: pairId(viewer.id, id) },
+  ])])
+  const rels = ids.flatMap((id, i): Relation[] => {
+    const [subject, mine, theirs, shareIn, shareOut, mute] = found.slice(i * 6, i * 6 + 6)
+    return subject ? [{ subject: { ...subject, id }, mine, theirs, shareIn, shareOut, muted: !!mute }] : []
+  })
+  return { me: { ...me, id: viewer.id }, rels }
+}
+
+/** Cards through the lens. The vault is opened only for people with a share to the viewer. */
+export async function cards(viewer: Viewer, rels: Relation[]): Promise<Card[]> {
+  const vault = await openVault(viewer.id, rels.filter((r) => r.shareIn).map((r) => ({ owner: r.subject.id, share: r.shareIn })))
+  return rels.map((r) => cardFor(viewer, { ...r, vault: vault.get(r.subject.id) }))
+}
+
+/** Hands over contact cards: one share doc (`from_to`) and one `shared` receipt each, in a single write. Returns the shares. */
+export function giveCards(list: { from: string; to: Profile; fields: ContactField[]; via: Share['via']; note?: string }[]): Promise<Share[]> {
+  if (!list.length) return Promise.resolve([])
+  return span('share', { count: list.length, via: list[0].via }, async () => {
+    const at = new Date().toISOString()
+    const given = list.map(({ from, to, fields, via, note }): Share => ({ from, to: to.id, fields, via, note, at }))
+    await bulk(given.flatMap((s) => [
+      { index: { _index: ix.shares, _id: pairId(s.from, s.to) } }, s,
+      { index: { _index: ix.receipts } }, { owner: s.from, who: s.to, type: 'shared', fields: s.fields, at, traceId: traceId() },
+    ]))
+    for (const s of list) shares.add(1, { via: s.via, to: toKind(s.to) })
+    return given
+  })
+}
+
+export type ReceiptDoc = Omit<Receipt, 'who'> & { who: string }
+export const toReceipt = (r: ReceiptDoc, who: Map<string, Card>): Receipt =>
+  ({ id: r.id, type: r.type, who: who.get(r.who) ?? null, fields: r.fields, at: r.at, traceId: r.traceId })
+
+export type RequestDoc = Omit<BoothRequest, 'id' | 'booth' | 'attachment'> & { booth: string; attendee: string; attachment?: Attachment }
+export const toRequest = (id: string, r: RequestDoc, booth: Card): BoothRequest =>
+  ({ id, booth, note: r.note, attachment: r.attachment, why: r.why ?? [], status: r.status, source: r.source, createdAt: r.createdAt, expiresAt: r.expiresAt })

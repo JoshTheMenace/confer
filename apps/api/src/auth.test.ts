@@ -3,7 +3,7 @@ import { beforeEach, expect, test, vi } from 'vitest'
 import { auth, hashToken } from './auth.js'
 import { es } from './es.js'
 
-vi.mock('./es.js', () => ({ es: { get: vi.fn(), search: vi.fn(), index: vi.fn() } }))
+vi.mock('./es.js', () => ({ es: { get: vi.fn(), search: vi.fn(), index: vi.fn() }, ix: new Proxy({}, { get: (_, name) => name }) }))
 
 const app = new Hono<{ Variables: { me: unknown } }>().use(auth).get('/', (c) => c.json(c.var.me))
 const call = (token?: string) => app.request('/', { headers: token ? { authorization: `Bearer ${token}` } : {} })

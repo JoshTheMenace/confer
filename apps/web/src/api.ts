@@ -8,9 +8,6 @@ export const getToken = () => { try { return localStorage.getItem(KEY) ?? memory
 export const setToken = (t: string) => { memory = t; try { t ? localStorage.setItem(KEY, t) : localStorage.removeItem(KEY) } catch { /* memory only */ } }
 
 // End-to-end typed client: change an API route and the web build breaks, not production.
-// Catches from this session, so the Dex shows them before search catches up (see mergeRecent).
-export const justCaught: (import('../../api/src/consent').Card & { caughtAt: string })[] = []
-
 export const api = hc<AppType>('/', { headers: (): Record<string, string> => (getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) })
 
 /** Await a typed call: returns the success body, throws a readable Error otherwise. */
@@ -22,5 +19,4 @@ export async function call<R extends { ok: boolean; status: number; json(): Prom
 }
 
 export type Me = Awaited<ReturnType<typeof call<Awaited<ReturnType<typeof api.api.me.$get>>>>>['me']
-export type { Card } from '../../api/src/consent'
 export type { DexType } from '../../api/src/dexTypes'

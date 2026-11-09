@@ -4,7 +4,7 @@
 
 People take a Sharpie to their own conference badges so booths can't scan them. One conference's badge guide even [told attendees how](https://us.wordcamp.org/2019/category/tickets/). A scan today can put your email on a lead list, and the sales emails start before you've flown home.
 
-Meeting someone at a conference shouldn't subscribe you to them. With Confer, a badge scan shows a first name, a silhouette and what you have in common. To go further, someone has to **ask, and say why**. Your contact card and photo move only when you say so, and **Unshare** revokes them.
+Meeting someone at a conference shouldn't subscribe you to them. With Confer, a badge scan shows a first name, a silhouette and what you have in common. The other person sees the same about you in their log. To go further, either of you taps **Connect**. Your contact card and photo move only when you say so, and **Unshare** revokes them.
 
 Built in one day at the Cloud Native Hackathon (WeMakeDevs, Salt Lake City, 2026-11-09).
 
@@ -13,9 +13,10 @@ Built in one day at the Cloud Native Hackathon (WeMakeDevs, Salt Lake City, 2026
 | Moment | What happens |
 |---|---|
 | **Meet** | Scan a badge (an AprilTag) with the camera, or type its number. You see a first name, a silhouette, and things in common, including *related* topics ("OpenTelemetry" and "Distributed tracing"). The other person does nothing. The meeting lands in both people's list, which is also the "who scanned me" log. |
-| **Ask** | A **message request** says why you want to connect. The other person sees who is asking (a silhouette), the reason and what you have in common, then picks **Reply, Share my card, Ignore or Mute**. |
-| **Chat** | Text chat inside every request. Chatting reveals nothing more than the card does. It is also the way to talk in a loud hall, or without speaking. |
-| **Share** | One-way, any time. The other person gets the fields you ticked, and your silhouette fills in with your photo on their screen. **Unshare** removes it from Confer and writes a deletion receipt. It cannot recall a copy someone already made, and the app says so. |
+| **The log** | The person you scanned sees an entry that says you scanned them, with the same information about you: first name, silhouette, things in common. Because both people can see what they have in common, there is already something to talk about, and most meetings never need a contact swap at all. |
+| **Connect** | A **Connect** button sits next to every entry in the log, on both phones. One tap shares your card with that person. If they connected first, yours reads **Connect back**. Nothing is shared for you by the other person's tap. |
+| **Message** | Optional text chat with anyone you met, for a loud hall or for Deaf attendees. A first message arrives as a request the other person can answer, ignore or mute. Messaging reveals nothing more than the card does. |
+| **What Connect shares** | It is one-way, any time. The other person gets the fields you ticked, and your silhouette fills in with your photo on their screen. **Unshare** removes it from Confer and writes a deletion receipt. It cannot recall a copy someone already made, and the app says so. |
 | **Booths** | A booth sees topics and fit, and no name unless you allow it. It sends a request with a note and an attachment; the attachment is yours whether or not you share. The booth's lead list is only people who said yes, with the note that won them, and exports to CSV. |
 | **Consent as Kubernetes RBAC** | Every yes to a booth is mirrored as a RoleBinding in that booth's own namespace. The CSV export asks Kubernetes about every row before it opens any contact data. Unshare deletes the binding, and the row leaves the export. See [docs/kubernetes-consent.md](docs/kubernetes-consent.md). |
 | **Discover** | "What are you stuck on?" finds talks, booths and people who opted in to be found. |

@@ -19,19 +19,19 @@ Everything in this repo was built to make these five minutes work. Present from 
 | 0:30 | "Thirty-second sign-up. First name? Three things you're into?" | Right phone: first name, badge number **501**, tap three topics (steer toward Kubernetes or tracing), **Take photo**, a placeholder email (`you@example.dev`, never their real one). |
 | 1:05 | "Now I'm across the room and I scan your badge. You don't touch anything." | Left phone: Scan, point the webcam at the badge (or type 501). |
 | 1:15 | "I get a first name, a silhouette, and what we have in common. Not your face, not your email, not your job. And this one is *related*: I wrote OpenTelemetry, you picked distributed tracing. Elasticsearch judged that those are the same conversation." | Point at the things in common. |
-| 1:35 | "If I want more, I have to ask, and say why." | Left phone: **Connect**, pick the suggested opener, send. Right phone: the request arrives. |
-| 1:45 | "Your call: reply, share, ignore, or mute me. Chatting gives away nothing." | Volunteer taps **Reply** and sends a line. Then: "Want to share your card with me? You tap it." They tap **Share my card**. |
-| 2:05 | "Watch my phone." *(pause)* "That's the moment. Your face appears because you chose it." | The reveal plays on the left. |
+| 1:35 | "On your phone, look at your log: it says I scanned you, and shows the same about me. Nothing has moved yet. We already have something to talk about, and for most people that is enough." | Right phone: **People**. Point at the entry. |
+| 1:50 | "If you want me to have your details, tap Connect. Your call." | Volunteer taps **Connect** on the entry. |
+| 2:00 | "Watch my phone." *(pause)* "That's the moment. Your face appears because you chose it. I'll connect back." | The reveal plays on the left. Left phone: **Connect back**. |
 | 2:20 | "And you can take it back." | Volunteer taps **Unshare**. The photo drains, the receipt prints. "A receipt with a trace id. Honest limit: we can't un-see a screenshot, and the app says so." |
 | 2:35 | "Now I'm a sponsor booth. Same badge, same scan." | Left phone: switch to **Booth**, scan 501. "Topics and fit. No name. So instead of harvesting an email, I send a note and the guide we talked about." Send it. |
-| 2:55 | "You get the guide either way. Share with the booth?" | Volunteer: Inbox, **Share my card**. Left phone: **Leads**. "Only people who said yes, each with the note that won them." |
+| 2:55 | "You get the guide either way. Share with the booth?" | Volunteer: Inbox, **Connect**. Left phone: **Leads**. "Only people who said yes, each with the note that won them." |
 | 3:10 | "Here is my favourite part. That yes is now a Kubernetes RoleBinding in this booth's own namespace. The export asks Kubernetes about every row before it opens any contact data." | Wait for the lead's chip to read "Kubernetes: allowed" (the operator needs 3 to 8 seconds). Then **Export CSV**: every row allowed. Radar tab: the binding `contact-…` in `booth-seed-580`. |
 | 3:30 | "Unshare from the booth." | Volunteer: **Unshare**. Radar: the binding disappears. Left phone: **Export CSV** again: one row fewer. "Consent you can `kubectl get`." |
 | 3:50 | "We didn't just build it, we operated it today." | Left phone: **Organizer**, Pulse. "These numbers moved while we talked. Health and the SLO are read live from Dash0." |
 | 4:00 | "Dash0's Agent0 found that every request spent a quarter of a second re-checking the sign-in. Four tokens, 746 lookups. We cached it." | Dash0 tab. |
 | 4:10 | "Radar's AI investigation fixed our first broken deploy, and its MCP server checks every rollout." | Radar tab. |
 | 4:20 | "Every pull request was reviewed by Gitar. It caught a privacy hole in the API contract before any code existed, and it pushed fixes itself. Three times we disagreed and showed it evidence." | GitHub tab. |
-| 4:35 | "Last thing. Your photo stays hidden until you choose. You can say how you like to be approached, chat instead of shouting over a hall, type a number instead of using a camera, and turn motion off." | Back to Stage. |
+| 4:35 | "Last thing. Your photo stays hidden until you choose. You can say how you like to be approached, message instead of shouting over a hall (or if you are Deaf), type a number instead of using a camera, and turn motion off." | Back to Stage. |
 | 4:50 | "Confer. The front of your badge says hi. Only you say yes. And as promised:" | Run `demo:reset`: the volunteer's profile and photo are gone. |
 
 ## If something breaks

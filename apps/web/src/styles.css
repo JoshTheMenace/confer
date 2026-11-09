@@ -120,7 +120,7 @@ blockquote { border-left: 5px solid var(--mark); padding: 2px 0 2px 12px; font-s
 .k8s { display: flex; flex-direction: column; gap: 2px; align-items: start; margin: 0 } .k8s b { font-size: .875rem; padding: 1px 8px; border-radius: 4px; border: 1.5px solid currentColor; color: var(--open) } .k8s.denied b { color: var(--accent) } .k8s.unavailable b { color: var(--soft); border-style: dashed }
 .k8s code { font: .875rem/1.35 ui-monospace, Menlo, monospace; color: var(--soft); overflow-wrap: anywhere }
 .loading { color: var(--soft); font-weight: 600; padding: 18px 14px; border: 1.5px dashed var(--line); border-radius: 4px; text-align: center }
-.strip .stat strong { color: #212326 }
+.strip .stat strong { display: block; color: #212326 }
 .pickme { display: flex; align-items: center; gap: 8px; min-height: 44px } .status { font-weight: 700; color: var(--ink) }
 /* Numbers: a big bold figure over a small tracked label. */
 .stats { display: flex; flex-wrap: wrap; gap: 8px } .stats .stat { flex: 1 1 130px }
@@ -178,6 +178,8 @@ details { border-top: 1px solid var(--line); padding-top: 8px } summary { min-he
 .phone-wrap { display: flex; flex-direction: column; gap: 8px; align-items: center; min-height: 0 }
 .switch { display: flex; gap: 4px } .switch button { min-height: 44px; padding: 0 8px; border-radius: 4px; border: 2px solid #fff; background: transparent; color: #fff; font: inherit; font-weight: 700; font-size: 14px; letter-spacing: .05em; text-transform: uppercase; cursor: pointer } .switch [aria-pressed='true'] { background: var(--yellow); border-color: var(--yellow); color: #212326 }
 .phone { width: 390px; flex: 1; min-height: 0; border: 9px solid var(--night); border-radius: 30px; overflow: hidden; background: var(--bg); color: var(--ink); box-shadow: 0 18px 40px #030e2873 } .phone .app { height: 100% } .phone .onboarding { min-height: 0; height: 100%; overflow-y: auto }
+/* A smaller projector or laptop: narrower phones and a two-column strip, so the header keeps its room. */
+@media (min-width: 1101px) and (max-width: 1340px) { .stage { grid-template-columns: minmax(0, 1fr) 350px 350px; gap: 0 20px; padding: 14px 24px } .phone { width: 100% } .phone-wrap { min-width: 0; align-items: stretch } .switch { justify-content: center } .switch button { padding: 0 5px; letter-spacing: 0 } .stage > header { gap: 8px; padding: 6px 0 } .stage > header .wordmark { font-size: min(6.4vw, 84px) } .tagline { letter-spacing: .12em } .story li { padding: 5px 0 } .strip { gap: 6px } .strip .stat { padding: 6px 10px } }
 @media (max-width: 1100px) { .stage { grid-template-columns: 1fr 1fr; grid-template-rows: auto 760px; height: auto; overflow: visible } .stage > header { grid-column: 1 / -1 } .phone { width: 100% } }
 
 /* Narrow phones: the related pair stacks instead of squeezing. */

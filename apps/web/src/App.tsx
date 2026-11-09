@@ -143,7 +143,7 @@ export function Stage() {
         <section className="strip" aria-label={isMock ? 'Event numbers, sample data' : 'Event numbers, live'}>
           <p className="live">{isMock ? 'Sample data' : 'Live'}</p>
           {numbers.map(([label, value, format]) => <p className="stat" key={label}><b><Count value={value} format={format} /></b><span>{label}</span></p>)}
-          {t && <p className="stat">{slo ? <><b><Count value={slo.current} format={(n) => `${(n * 100).toFixed(1)}%`} /></b><span>Fast · SLO {pct(slo.target)} · <strong>{slo.ok ? 'OK' : 'At risk'}</strong></span></> : <><b>–</b><span>SLO not available</span></>}</p>}
+          {t && <p className="stat">{slo ? <><b><Count value={slo.current} format={(n) => `${(n * 100).toFixed(1)}%`} /></b><span>Fast · SLO {pct(slo.target)}<strong>{slo.ok ? '✓ OK' : '! At risk'}</strong></span></> : <><b>–</b><span>SLO not available</span></>}</p>}
           {!t && <p className="warming">Numbers are warming up…</p>}
         </section>
       </header>

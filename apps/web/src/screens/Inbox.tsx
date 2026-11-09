@@ -4,7 +4,7 @@ import { call } from '../api'
 import { AttachmentCard, listFields, nameOf, Portrait, Problem, time, useAct, useApp, Why, who } from '../ui'
 
 type Action = Api['POST /api/chats/:id/answer']['body']['action']
-const receiptWords = { shared: ['↗', 'You shared with'], opened: ['👁', 'Opened by'], unshared: ['✂', 'You unshared from'] } as const
+const receiptWords = { shared: ['↗', 'You shared with'], opened: ['👁', 'Opened by'], exported: ['⬇', 'Exported by'], unshared: ['✂', 'You unshared from'] } as const
 
 /** A message request: who is asking (still a silhouette), why, what you have in common, and what a booth attached. */
 function RequestCard({ t }: { t: Thread }) {
@@ -77,7 +77,7 @@ export function InboxScreen() {
             {data?.receipts.map((r) => (
               <li key={r.id}>
                 <span aria-hidden>{receiptWords[r.type][0]}</span>
-                <span><b>{receiptWords[r.type][1]} {r.who ? who(r.who) : 'someone'}</b><br />{listFields(r.fields)} · {time(r.at)}</span>
+                <span><b>{receiptWords[r.type][1]} {r.who ? who(r.who) : 'someone'}</b><br />{listFields(r.fields)} · {time(r.at)}{r.type === 'exported' && <><br /><small>Kubernetes checked your grant first</small></>}</span>
                 {r.traceId && <code title="Trace id">{r.traceId.slice(0, 8)}</code>}
               </li>
             ))}

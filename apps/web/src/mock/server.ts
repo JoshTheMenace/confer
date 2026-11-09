@@ -1,5 +1,5 @@
-import type { Api, Attachment, Card, Common, ContactField, Lead, Me, Message, Receipt, Term, Thread, Visitor } from '../../../api/src/contract'
-import { profiles, related, talks } from './fixtures'
+import type { Api, Attachment, BoothGrant, Card, Common, ContactField, Lead, Me, Message, Receipt, Term, Thread, Visitor } from '../../../api/src/contract'
+import { profiles, related, sampleCsv, talks } from './fixtures'
 
 type Req<K extends keyof Api> = { params: Record<string, string>; body: Api[K] extends { body: infer B } ? B : undefined; query: Api[K] extends { query: infer Q } ? Q : undefined }
 /** One conversation. `a` wrote first; `why` is frozen from `a`'s side; `seen` is how many messages each side has read. */
@@ -187,6 +187,13 @@ export function createMock(now: () => number = Date.now) {
     },
     'GET /api/booth/prospects': (me) => ({
       prospects: attendees().filter((a) => a.openToBooths && !meets.has(pair(a.id, me.id))).map((a) => visitor(me, a, 'match')).filter((v) => v.card.common.length).sort((a, b) => b.fit - a.fit),
+    }),
+    'GET /api/booth/export': (me) => {
+      for (const [k, s] of shares) if (k.endsWith(`>${me.id}`)) log(k.split('>')[0], { type: 'exported', who: card(get(k.split('>')[0]), me), fields: s.fields })
+      return sampleCsv
+    },
+    'GET /api/booth/grants': (me) => ({
+      grants: [...shares].filter(([k]) => k.endsWith(`>${me.id}`)).map(([k, s]): BoothGrant => ({ attendeeId: k.split('>')[0], namespace: `booth-seed-${me.tagId}`, binding: `contact-seed-${k.split('>')[0].slice(1)}`, verbs: [...s.fields.map((f) => `read-${f}`), 'export'], kubernetes: 'allowed' })),
     }),
     'GET /api/discover': (me, { query }) => {
       const text = query?.q?.trim() || [...me.interests, me.stuckOn ?? ''].join(' '), q = words(text)

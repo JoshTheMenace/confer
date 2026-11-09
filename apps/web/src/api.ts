@@ -41,6 +41,23 @@ export async function call<K extends keyof Api>(session: Session, route: K, ...[
   return data
 }
 
+/** The booth's CSV export: text, not JSON, and Kubernetes' verdict rides in the response headers. */
+export async function exportCsv(session: Session) {
+  const route = 'GET /api/booth/export'
+  let out: { csv: string; name: string; gate: string | null; exported: number; denied: number }
+  if (isMock) {
+    const csv = (await import('./mock/server')).mock.call(session.token, route)
+    out = { csv, name: 'confer-leads-sample.csv', gate: 'kubernetes', exported: csv.trim().split('\n').length - 1, denied: 0 }
+  } else {
+    const res = await fetch(buildPath(route), { headers: { Authorization: `Bearer ${session.token}` } }).catch(() => { throw new Error('No connection. Check the network and try again.') })
+    if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? `The export did not go through (${res.status}). Try again.`)
+    const h = res.headers
+    out = { csv: await res.text(), name: /filename="?([^";]+)/.exec(h.get('Content-Disposition') ?? '')?.[1] ?? 'confer-leads.csv', gate: h.get('X-Confer-Gate'), exported: Number(h.get('X-Confer-Exported')), denied: Number(h.get('X-Confer-Denied')) }
+  }
+  globalThis.dispatchEvent?.(new Event(WROTE)) // the attendee's receipt shows up at once
+  return out
+}
+
 /** Fired after every write, so every poll in the page (both phones on Stage) refreshes at once instead of up to 2 seconds later. */
 export const WROTE = 'confer:wrote'
 

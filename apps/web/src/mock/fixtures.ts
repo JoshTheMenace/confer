@@ -65,3 +65,10 @@ export const talks: Talk[] = [
   talk(7, 'Agents on call', 'Sofia', 'AI', 'Hall B', ['AI agents', 'Incident response'], 'What an AI investigation should and should not touch.'),
   talk(8, 'Signing everything', 'Noor', 'Security', 'Room 2', ['Supply chain security', 'Kubernetes'], 'From build to cluster without trusting the network.'),
 ]
+
+/** What the booth's export hands back in mock mode: obviously made-up people. */
+export const sampleCsv = `name,role,email,linkedin,github,shared_at
+Sample Person One,Platform Engineer,sample.one@example.dev,linkedin.com/in/sample-one,sample-one,2026-11-09T10:02:00Z
+Sample Person Two,SRE,sample.two@example.dev,linkedin.com/in/sample-two,,2026-11-09T10:15:00Z
+Sample Person Three,Developer Advocate,sample.three@example.dev,,sample-three,2026-11-09T10:31:00Z
+`

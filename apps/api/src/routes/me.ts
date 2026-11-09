@@ -92,11 +92,11 @@ export const me = new Hono<{ Variables: { me: Session } }>()
         void embed(profile.interests, 20_000).catch(() => {})
       }
     }
-    const saved = await Promise.all([
-      (contact || photo !== undefined) && es.update({ index: ix.vault, id, doc: { ...contact, ...(photo !== undefined && { photo: photo || null }) }, doc_as_upsert: true }),
-      es.update({ index: ix.profiles, id, ...(interestCondition ?? {}), doc: { ...profile, ...(photo !== undefined && { hasPhoto: !!photo }), ...(interestEdits && { interestEdits }) } }),
-    ]).catch((err) => (err?.statusCode === 409 ? null : Promise.reject(err)))
+    // The conditional profile write goes first: if it loses a race, nothing else (contact, photo) is saved either.
+    const saved = await es.update({ index: ix.profiles, id, ...(interestCondition ?? {}), doc: { ...profile, ...(photo !== undefined && { hasPhoto: !!photo }), ...(interestEdits && { interestEdits }) } })
+      .catch((err) => (err?.statusCode === 409 ? null : Promise.reject(err)))
     // Two edits at once: the second loses instead of slipping past the interest-edit cap.
     if (!saved) return c.json({ error: 'Your profile was changed somewhere else at the same moment. Please try again.' }, 409)
+    if (contact || photo !== undefined) await es.update({ index: ix.vault, id, doc: { ...contact, ...(photo !== undefined && { photo: photo || null }) }, doc_as_upsert: true })
     return c.json({ me: await myself(id) } satisfies Api['PATCH /api/me']['res'])
   })

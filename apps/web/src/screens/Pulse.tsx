@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import type { Pulse } from '../../../api/src/contract'
-import { call, type Session } from '../api'
+import { call, isMock, type Session } from '../api'
 import { httpsUrl } from '../links'
 import { Bars, pct, Problem, Stat, time, useApp, usePoll } from '../ui'
 
@@ -43,7 +43,7 @@ export function PulseScreen() {
             </section>
           )}
           <section className="paper health">
-            <h2>Health <small>{h?.source === 'dash0' ? 'read live from Dash0' : 'Dash0 is not reachable right now'}</small></h2>
+            <h2>Health <small>{h?.source === 'dash0' ? (isMock ? 'sample data, not live' : 'read live from Dash0') : 'Dash0 is not reachable right now'}</small></h2>
             {h?.source === 'dash0' && (
               <>
                 <div className="stats"><Stat label="p95 ms" value={h.p95Ms ?? 0} /><Stat label="errors" value={h.errorRate ?? 0} format={(n) => `${(n * 100).toFixed(1)}%`} /><Stat label="requests/min" value={h.requestsPerMin ?? 0} /></div>

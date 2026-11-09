@@ -35,3 +35,7 @@ export const parseRoute = (hash: string): Route => {
 }
 
 export const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+
+// Search-backed lists (the Dex) only see a catch after Elasticsearch's next refresh (~5s on Serverless).
+// Cards caught this session fill that gap, newest first, until the server list includes them.
+export const mergeRecent = <T extends { id: string }>(server: T[], recent: T[]) => [...recent.filter((r) => !server.some((s) => s.id === r.id)), ...server]

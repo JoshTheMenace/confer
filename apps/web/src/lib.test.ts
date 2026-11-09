@@ -29,3 +29,8 @@ test('contact links cannot become javascript: URLs', () => {
   expect(contactHref('github', '@ana')).toBe('https://github.com/ana')
   expect(contactHref('email', 'ana@example.com')).toBe('mailto:ana@example.com')
 })
+
+test('mergeRecent shows just-caught people before search catches up, without duplicates', async () => {
+  const { mergeRecent } = await import('./lib')
+  expect(mergeRecent([{ id: 'a' }], [{ id: 'b' }, { id: 'a' }]).map((c) => c.id)).toEqual(['b', 'a'])
+})

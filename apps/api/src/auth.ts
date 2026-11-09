@@ -22,8 +22,9 @@ async function lookUp(tokenHash: string): Promise<Me | undefined> {
 }
 
 // That GET ran before every request and cost about 270 ms each time (Dash0: `get` p50 on dex-api, docs/incidents.md #5).
-// A token never changes hands, so a pod may remember who it belongs to for AUTH_CACHE_SECONDS (300 in k8s/base/api.yaml;
-// off by default). Unknown tokens are never remembered.
+// A token never changes hands, so a pod may remember who it belongs to for AUTH_CACHE_SECONDS (30 in k8s/base/api.yaml;
+// off by default). Unknown tokens are never remembered. Kept short on purpose: an account that is deleted (the event ends, a
+// demo reset) stops working within that time, and a phone that polls every few seconds still skips nine lookups in ten.
 const known = new Map<string, { me: Me; until: number }>()
 export const forget = (tokenHash: string) => known.delete(tokenHash)
 async function resolve(tokenHash: string): Promise<Me | undefined> {

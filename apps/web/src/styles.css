@@ -34,7 +34,7 @@ fieldset { border: 0; min-width: 0 } legend { font-weight: 700; margin-bottom: 6
 .app { position: relative; display: flex; flex-direction: column; height: 100dvh; max-width: 480px; margin: 0 auto; background: var(--bg) }
 .bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--bar); color: #fff }
 .whoami { font-size: .85rem }
-.screen { flex: 1; overflow-y: auto; padding: 18px 16px 28px; display: flex; flex-direction: column; gap: 14px; animation: fade .25s both }
+.screen { flex: 1; overflow-y: auto; padding: 18px 16px 28px; display: flex; flex-direction: column; gap: 14px; animation: fade .25s both } .screen > * { flex-shrink: 0 }
 .app nav { display: flex; background: var(--paper); border-top: 1px solid var(--line) }
 .app nav a { position: relative; flex: 1; min-height: 58px; display: grid; place-items: center; align-content: center; gap: 2px; text-decoration: none; font-size: .85rem; font-weight: 600; color: var(--soft); border-top: 4px solid transparent }
 .app nav a[aria-current] { color: var(--brand); font-weight: 700; border-top-color: var(--mark) }
@@ -55,14 +55,14 @@ input:not([type='checkbox'], [type='radio']), textarea { display: block; width: 
 .chip { display: inline-flex; flex-direction: column; padding: 5px 10px; border-radius: 4px; background: var(--chip); border: 1px solid var(--chip-line); font-weight: 600; font-size: .95rem }
 .chip small { font-size: .85rem; line-height: 1.1 }
 .chip.pick { flex-direction: row; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border: 1.5px solid var(--edge); background: var(--paper); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer }
-.chip.pick[aria-pressed='true'] { background: var(--solid); color: var(--on-solid); border-color: var(--solid) } .chip.pick[aria-pressed='true']::before { content: '✓' }
+.filters .chip.pick { padding: 0 10px } .chip.pick[aria-pressed='true'] { background: var(--solid); color: var(--on-solid); border-color: var(--solid) } .chip.pick[aria-pressed='true']::before { content: '✓' }
 .approach { display: inline-flex; gap: 6px; padding: 3px 10px; border-radius: 4px; border: 2px solid; font-weight: 700; font-size: .85rem; letter-spacing: .08em; text-transform: uppercase; width: fit-content }
 .approach.open { color: var(--open) } .approach.ask { color: var(--ask) } .approach.quiet { color: var(--quiet) }
 
 /* The badge: a clean conference badge. White card, a navy band on top (the old slot), the portrait, the name large and bold. */
 .badge { position: relative; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 30px 16px 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden }
 .strap { display: none } .slot { position: absolute; inset: 0 0 auto; height: 14px; background: var(--bar) }
-.badge.swing { animation: rise .45s ease-out both } .badge.caught { animation: spring-up .55s var(--spring) backwards }
+.badge.swing { animation: rise .45s ease-out both } .badge.caught { animation: spring-up .55s var(--spring) backwards; padding-top: 26px; gap: 8px }
 .badge h1, .badge h2 { font-size: 1.8rem; line-height: 1.1; letter-spacing: -.01em; text-transform: none; color: var(--ink) } .role { font-weight: 700 }
 .who { display: flex; gap: 14px; align-items: center } .who .portrait { width: 112px; flex: none }
 .catch { display: flex; flex-direction: column; gap: 16px; position: relative }
@@ -76,11 +76,11 @@ input:not([type='checkbox'], [type='radio']), textarea { display: block; width: 
 /* Things in common: a tick and the word for "same"; two tags joined by a turquoise RELATED link for "related". */
 .common li { display: flex; align-items: center; min-width: 0; max-width: 100%; animation: pop .45s var(--spring) both; animation-delay: calc(.35s + var(--i) * .16s) }
 .common li.same .chip { flex-direction: row; gap: 6px } .common li.same .chip::before { content: '✓' }
-.common li.related { flex-basis: 100%; flex-wrap: wrap; background: var(--rel-bg); border: 1px solid var(--rel-line); border-radius: 4px } .common li.related .chip { flex: 0 1 auto; background: none; border: 0 }
-.common h3 { margin-bottom: 8px; display: flex; align-items: baseline; gap: 6px } .common .count { color: var(--accent); font-size: 2rem; line-height: 1; letter-spacing: 0 }
-.link { position: relative; flex: 1 0 84px; text-align: center; align-self: stretch; display: grid; place-items: center }
+.common li.related { flex-basis: 100%; display: grid; grid-template-columns: auto minmax(74px, 1fr) auto; background: var(--rel-bg); border: 1px solid var(--rel-line); border-radius: 4px } .common li.related .chip { background: none; border: 0; padding: 4px 8px; font-size: .9rem }
+.common h3 { margin-bottom: 4px; display: flex; align-items: baseline; gap: 6px } .common .count { color: var(--accent); font-size: 1.8rem; line-height: 1; letter-spacing: 0 }
+.link { position: relative; flex: 1 0 80px; text-align: center; align-self: stretch; display: grid; place-items: center }
 .link i { position: absolute; left: 0; right: 0; top: 50%; border-top: 2px dashed var(--rel-line); transform-origin: left; animation: draw .5s ease-out both; animation-delay: calc(.7s + var(--i) * .16s) }
-.link em { position: relative; background: var(--rel-bg); color: var(--rel-ink); font-style: normal; font-weight: 700; font-size: .85rem; letter-spacing: .12em; text-transform: uppercase; padding: 0 6px }
+.link em { position: relative; background: var(--rel-bg); color: var(--rel-ink); font-style: normal; font-weight: 700; font-size: .85rem; letter-spacing: .06em; text-transform: uppercase; padding: 0 3px }
 
 /* The reveal: the silhouette sits underneath and the photo wipes up over the bust in one continuous move. Then the stamp lands. */
 .portrait { position: relative; display: block; aspect-ratio: 1; width: 100%; border-radius: 5px; overflow: hidden; background: var(--navy) }
@@ -90,14 +90,14 @@ input:not([type='checkbox'], [type='radio']), textarea { display: block; width: 
 .portrait.on .photo { clip-path: inset(0) }
 .portrait.frozen .photo { transition: none; clip-path: inset(calc((1 - var(--p)) * 100%) 0 0 0) }
 .stamp { position: absolute; right: 12px; top: 30px; rotate: -6deg; padding: 4px 10px; border-radius: 4px; background: var(--pink); color: #fff; box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--pink); font-weight: 700; font-size: .85rem; letter-spacing: .12em; text-transform: uppercase; animation: thunk .4s .9s cubic-bezier(.3, 1.6, .5, 1) both }
-.contact div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line) } .contact dt { color: var(--soft) } .contact dd { margin: 0; font-weight: 700; overflow-wrap: anywhere }
+.contact div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 12px; padding: 8px 0; border-top: 1px solid var(--line) } .contact dt { color: var(--soft) } .contact dd { margin: 0; font-weight: 700; overflow-wrap: anywhere }
 
 .progress { font-size: 1.15rem } .progress b { font-size: 1.5rem }
 .meter { display: flex; gap: 4px } .meter i { flex: 1; max-width: 28px; height: 10px; border-radius: 2px; border: 1.5px solid var(--solid) } .meter i.on { background: var(--mark); border-color: var(--mark) }
 .wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 12px 10px }
 .mini { position: relative; width: 100%; min-height: 44px; padding: 18px 8px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); color: var(--ink); font: inherit; text-align: left; overflow: hidden; display: flex; flex-direction: column; gap: 2px; cursor: pointer; transition: transform .2s var(--spring) }
 .mini:hover { transform: translateY(-3px) } .mini .slot { height: 8px }
-.mini .stamp { top: 22px; right: 6px; padding: 1px 6px; animation-delay: 0s }
+.mini .stamp { top: 12px; right: 4px; padding: 0 5px; letter-spacing: .04em; rotate: -4deg; box-shadow: none; animation-delay: 0s }
 
 .request { animation: slide-in .5s var(--spring) both } .request header b { font-size: 1.3rem; line-height: 1.15 }
 .request.ignored blockquote, .request.ignored .attach { opacity: .8 }
@@ -116,8 +116,8 @@ blockquote { border-left: 5px solid var(--mark); padding: 2px 0 2px 12px; font-s
 .person-hit, .visitor { flex-direction: row; align-items: start } .person-hit .portrait, .visitor .portrait { width: 64px; flex: none } .visitor > div, .person-hit > div { flex: 1; display: flex; flex-direction: column; gap: 6px }
 .pickme { display: flex; align-items: center; gap: 8px; min-height: 44px } .status { font-weight: 700; color: var(--ink) }
 /* Numbers: a big bold figure over a small tracked label. */
-.stats { display: flex; flex-wrap: wrap; gap: 8px } .stats .stat { flex: 1 1 100px }
-.stat { background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; display: flex; flex-direction: column } .stat b { font-size: 2rem; line-height: 1.1; font-variant-numeric: tabular-nums } .stat > span { font-size: .85rem; letter-spacing: .12em; text-transform: uppercase; color: var(--soft) }
+.stats { display: flex; flex-wrap: wrap; gap: 8px } .stats .stat { flex: 1 1 130px }
+.stat { background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; display: flex; flex-direction: column } .stat b { font-size: 2rem; line-height: 1.1; font-variant-numeric: tabular-nums } .stat > span { font-size: .85rem; letter-spacing: .1em; text-transform: uppercase; color: var(--soft) }
 table { border-collapse: collapse; width: 100%; font-size: .9rem } th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top } th { font-size: .85rem; letter-spacing: .1em; text-transform: uppercase; color: var(--soft) }
 .bars li { display: grid; grid-template-columns: 42% 1fr 2ch; gap: 8px; align-items: center; padding: 3px 0; font-size: .9rem } .bars i { height: 12px; border-radius: 2px; background: var(--mark); transform-origin: left; transform: scaleX(var(--w)); transition: transform .5s }
 .chart > div { display: flex; align-items: end; gap: 2px; height: 120px } .chart > div > span { flex: 1; height: 100%; position: relative }
@@ -128,7 +128,7 @@ table { border-collapse: collapse; width: 100%; font-size: .9rem } th, td { text
 .hero { display: flex; flex-direction: column; gap: 12px } .hero em { font-style: normal; color: var(--accent) } .hero .wordmark { font-size: 2.4rem }
 .how { display: flex; flex-direction: column; gap: 8px; counter-reset: how } .how li { counter-increment: how; padding-left: 38px; position: relative }
 .how li::before { content: counter(how); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 4px; background: var(--solid); color: var(--on-solid); display: grid; place-items: center; font-weight: 700 }
-.steps { display: flex; gap: 12px; font-size: .85rem; letter-spacing: .08em; text-transform: uppercase; color: var(--soft); font-weight: 700 } .steps [aria-current] { color: var(--ink); border-bottom: 3px solid var(--mark) }
+.steps { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .9rem; color: var(--soft); font-weight: 700 } .steps [aria-current] { color: var(--ink); border-bottom: 3px solid var(--mark) }
 .onboarding { max-width: 480px; margin: 0 auto; min-height: 100dvh } .selfie { width: 72px; height: 72px; border-radius: 5px; object-fit: cover }
 .mine { align-items: center; text-align: center } .seen { display: flex; gap: 12px; align-items: center; text-align: left } .sil { width: 64px; border-radius: 5px } .hello { font-size: 1.3rem } .tag { background: #fff; padding: 8px; border-radius: 4px; border: 2px solid #000; line-height: 0 }
 details { border-top: 1px solid var(--line); padding-top: 8px } summary { min-height: 44px; display: flex; align-items: center; font-weight: 700; cursor: pointer } details[open] { display: flex; flex-direction: column; gap: 12px }
@@ -137,7 +137,7 @@ details { border-top: 1px solid var(--line); padding-top: 8px } summary { min-he
 ::placeholder { color: var(--soft); opacity: 1 } textarea { resize: vertical } .icon { display: block; flex: none }
 .toast { position: absolute; left: 8px; right: 8px; top: 4px; z-index: 5; padding: 10px 14px; border-radius: 4px; border-left: 6px solid var(--pink); background: var(--toast); color: var(--on-toast); font-weight: 700; opacity: 0; transform: translateY(-12px); pointer-events: none; transition: opacity .25s, transform .25s }
 .toast.on { opacity: 1; transform: none }
-.connect { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px } .openers { display: flex; flex-direction: column; gap: 6px }
+.connect { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 10px } .openers { display: flex; flex-direction: column; gap: 6px }
 .opener { min-height: 44px; padding: 4px 10px; border-radius: 4px; border: 1.5px solid var(--chip-line); background: var(--chip); color: var(--ink); font: inherit; font-size: .85rem; line-height: 1.25; font-weight: 600; text-align: left; cursor: pointer }
 .opener[aria-pressed='true'] { border-color: var(--solid); background: var(--solid); color: var(--on-solid) } .opener[aria-pressed='true']::before { content: '✓ ' }
 .connect .row.end { align-items: center; flex-wrap: nowrap } .connect .row.end small { flex: 1 }

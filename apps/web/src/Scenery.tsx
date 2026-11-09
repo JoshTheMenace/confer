@@ -2,7 +2,7 @@
 // The cable is y = 140 + 184t - 196t² at x = 1440t; the `glide` keyframes in styles.css follow the same curve.
 const at = (t: number) => `translate(${1440 * t}px, ${140 + 184 * t - 196 * t * t}px)`
 const gondolas: [string, number][] = [['#FBEB8C', 0.1], ['#93EAFF', 0.44], ['#F7A8D8', 0.82]]
-const snow = Array.from({ length: 36 }, (_, i) => [(i * 131 + 40) % 1440, (i * 53) % 150, 1.4 + (i % 3) * 0.7])
+const snow = Array.from({ length: 36 }, (_, i) => [(i * 397 + 40) % 1440, (i * 89) % 150, 1.4 + (i % 3) * 0.7])
 const pines = [[52, 56], [96, 38], [188, 46], [470, 40], [578, 50], [694, 38], [1010, 44], [1178, 54], [1226, 36], [1334, 42], [1400, 52]]
 const peaks: [string, string, string][] = [
   ['M-40 230 130 86 300 230Z', 'M130 86 176 126 146 120 124 144 96 116Z', '#5B2D8E'],

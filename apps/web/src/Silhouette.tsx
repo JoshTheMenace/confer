@@ -17,7 +17,7 @@ export function hash(id: string) {
 export function silhouetteSvg(id: string) {
   const h = hash(id), [stock, ink] = stocks[h % stocks.length]
   const pattern = patterns[(h >>> 4) % patterns.length], tilt = ((h >>> 8) % 13) - 6, u = `s${h}`
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><defs><pattern id="${u}" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(${tilt * 5})"><g fill="${ink}" stroke="${ink}" opacity=".14">${pattern}</g></pattern></defs><rect width="80" height="80" fill="${stock}"/><rect width="80" height="80" fill="url(#${u})"/><path d="M10 82a30 30 0 0 1 60 0z" fill="${ink}"/><circle cx="40" cy="30" r="13.500" fill="${ink}"/></svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><defs><pattern id="${u}" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(${tilt * 5})"><g fill="${ink}" stroke="${ink}" opacity=".1">${pattern}</g></pattern></defs><rect width="80" height="80" fill="${stock}"/><rect width="80" height="80" fill="url(#${u})"/><path d="M10 82a30 30 0 0 1 60 0z" fill="${ink}"/><circle cx="40" cy="30" r="13.500" fill="${ink}"/></svg>`
 }
 
 export const silhouetteUrl = (id: string) => `data:image/svg+xml,${encodeURIComponent(silhouetteSvg(id))}`

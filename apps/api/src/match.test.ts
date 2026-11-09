@@ -30,7 +30,7 @@ describe('buildMatchQuery', () => {
   test('hybrid rrf of lexical + semantic, each scoped by the consent filters', () => {
     const req = buildMatchQuery({ id: 'me', interests: ['eBPF'], about: 'kernel nerd' })
     const rerank = (req.retriever as any).text_similarity_reranker
-    expect(rerank).toMatchObject({ field: 'about', inference_text: 'eBPF kernel nerd', rank_window_size: 20 })
+    expect(rerank).toMatchObject({ field: 'match_text', inference_text: 'eBPF kernel nerd', rank_window_size: 20 })
     const children = rerank.retriever.rrf.retrievers as any[]
     expect(req.index).toBe('profiles')
     expect(req._source.excludes).toContain('tokenHash')

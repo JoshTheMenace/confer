@@ -15,11 +15,12 @@ const indices = {
     pronouns: { type: 'keyword' },
     approach: { type: 'keyword' }, // open | ask | quiet
     commPref: { type: 'text' },
-    role: { type: 'text' },
-    interests: { type: 'keyword', copy_to: 'about_semantic' },
-    lookingFor: { type: 'keyword' },
-    about: { type: 'text', copy_to: 'about_semantic' },
+    role: { type: 'text', copy_to: 'match_text' },
+    interests: { type: 'keyword', copy_to: ['about_semantic', 'match_text'] },
+    lookingFor: { type: 'keyword', copy_to: 'match_text' },
+    about: { type: 'text', copy_to: ['about_semantic', 'match_text'] },
     about_semantic: { type: 'semantic_text' },
+    match_text: { type: 'text' },
     interestsVisibleTo: { type: 'keyword' }, // peers | sponsors
     discoverable: { type: 'boolean' },
     tokenHash: { type: 'keyword' }, // never returned to clients

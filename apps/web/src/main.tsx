@@ -1,7 +1,7 @@
 import { init } from '@dash0/sdk-web'
 import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { call, flag, isMock, type Persona } from './api'
+import { call, flag, isMock, personas, type Persona } from './api'
 import { App, Stage } from './App'
 import './styles.css'
 
@@ -32,7 +32,8 @@ function Root() {
     addEventListener('hashchange', onHash)
     return () => removeEventListener('hashchange', onHash)
   }, [])
-  return stage ? <Stage /> : <App persona={(flag('as') as Persona) ?? undefined} />
+  const as = flag('as')
+  return stage ? <Stage /> : <App persona={as && as in personas ? (as as Persona) : undefined} />
 }
 
 createRoot(document.getElementById('root')!).render(<Root />)

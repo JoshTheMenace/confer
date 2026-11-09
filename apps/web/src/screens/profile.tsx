@@ -150,7 +150,7 @@ export function Onboarding({ session, onToken, stage }: { session: Session; onTo
   useEffect(() => { if (step) heading.current?.focus() }, [step])
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    if (step === 0 && badge.trim() && !(/^\d+$/.test(badge.trim()) && Number(badge) <= 586)) return setProblem('Badge numbers go from 0 to 586.')
+    if (step === 0 && badge.trim() && !(/^\d+$/.test(badge.trim()) && Number(badge) >= 500 && Number(badge) <= 586)) return setProblem('Badge numbers on printed badges go from 500 to 586.')
     if (step === 1 && draft.interests.length < 3) return setProblem('Pick at least 3 topics so we can find what you have in common.')
     setProblem(undefined)
     if (step < 2) return setStep(step + 1)

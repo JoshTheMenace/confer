@@ -45,20 +45,22 @@ async function myself(id: string): Promise<Me> {
 }
 
 export const me = new Hono<{ Variables: { me: Session } }>()
-  .post('/signup', zValidator('json', input.extend({ contact, photo: photo.optional(), code: z.string().optional() })), async (c) => {
-    const { contact, photo, code, ...profile } = c.req.valid('json')
+  .post('/signup', zValidator('json', input.extend({ contact, photo: photo.optional(), code: z.string().optional(), tagId: z.number().int().min(0).max(586).optional() })), async (c) => {
+    const { contact, photo, code, tagId: wanted, ...profile } = c.req.valid('json')
     const kind: Kind | undefined = !code ? 'attendee' : code === process.env.SPONSOR_CODE ? 'sponsor' : code === process.env.ORGANIZER_CODE ? 'organizer' : undefined
     if (!kind) return c.json({ error: 'That code is not valid' }, 403)
     if (kind === 'attendee' && !attendeeInterests(profile.interests.length)) return c.json({ error: 'Pick 3 to 8 interests' }, 400)
-    const taken = await es.search<{ tagId: number }>({ index: ix.profiles, size: 500, _source: ['tagId'], query: { range: { tagId: { lt: 500 } } } })
-    const takenTags = new Set(taken.hits.hits.map((h) => h._source!.tagId))
     const id = randomUUID(), token = randomBytes(32).toString('base64url')
-    let tagId: number | undefined
-    // The search above can be 5s stale, so the claim itself is an atomic create on the tags index: one badge, one person.
-    for (let t = 0; t < 500 && tagId === undefined; t++) {
-      if (takenTags.has(t)) continue
-      const r = await es.index({ index: ix.tags, id: String(t), op_type: 'create', document: { profile: id } }, { ignore: [409] })
-      if (r.result === 'created') tagId = t
+    // One badge, one person: the claim is an atomic create on the tags index (a search can be 5s stale).
+    const claim = async (t: number) => (await es.index({ index: ix.tags, id: String(t), op_type: 'create', document: { profile: id } }, { ignore: [409] })).result === 'created'
+    let tagId = wanted
+    if (wanted !== undefined) {
+      // They were handed a printed badge and typed its number.
+      if (!(await claim(wanted))) return c.json({ error: `Badge ${wanted} already belongs to someone` }, 409)
+    } else {
+      const taken = await es.search<{ tagId: number }>({ index: ix.profiles, size: 500, _source: ['tagId'], query: { range: { tagId: { lt: 500 } } } })
+      const takenTags = new Set(taken.hits.hits.map((h) => h._source!.tagId))
+      for (let t = 0; t < 500 && tagId === undefined; t++) if (!takenTags.has(t) && (await claim(t))) tagId = t
     }
     if (tagId === undefined) return c.json({ error: 'No badges left' }, 409)
     const mine = { ...profile, tagId, kind, starred: [], hasPhoto: !!photo }

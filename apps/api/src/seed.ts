@@ -143,6 +143,8 @@ const shares = [
 ]
 const index = (_index: string, _id: string | undefined, doc: object) => [{ index: { _index, _id } }, doc]
 
+// Badge 501 stays free: it is the paper badge a volunteer claims at sign-up in the live demo. Diego keeps his sign-in (demo-501) and wears badge 540.
+const badge = (id: string, tagId: number) => (id === 'seed-501' ? 540 : tagId)
 const wipe = Object.entries(ix).filter(([name]) => name !== 'talks').map(([, index]) => index)
 await es.indices.delete({ index: wipe, ignore_unavailable: true })
 await ensureIndices()
@@ -150,9 +152,9 @@ const res = await es.bulk({
   refresh: true,
   operations: [
     ...[...attendees, ...booths, organizer].flatMap(({ id, handle, ...p }) => [
-      ...index(ix.profiles, id, { ...p, interestEdits: 0, tokenHash: hashToken(`demo-${p.tagId}`) }),
-      ...index(ix.tokens, hashToken(`demo-${p.tagId}`), { profile: id, kind: p.kind, tagId: p.tagId }),
-      ...index(ix.tags, String(p.tagId), { profile: id }),
+      ...index(ix.profiles, id, { ...p, tagId: badge(id, p.tagId), interestEdits: 0, tokenHash: hashToken(`demo-${p.tagId}`) }),
+      ...index(ix.tokens, hashToken(`demo-${p.tagId}`), { profile: id, kind: p.kind, tagId: badge(id, p.tagId) }),
+      ...index(ix.tags, String(badge(id, p.tagId)), { profile: id }),
       ...(handle ? index(ix.vault, id, {
         email: `${handle}@example.com`, linkedin: `https://linkedin.com/in/${handle}-example`, github: `${handle}-example`,
         photo: createAvatar(notionists, { seed: handle }).toDataUri(),
@@ -185,4 +187,4 @@ console.table(invariants)
 if (Object.values(invariants).includes(false)) throw new Error('demo invariants do not hold')
 console.log(`Seeded ${attendees.length} attendees, ${booths.length} booths, 1 organizer, ${meetings.size} meetings, ${shares.length} shares, ${threads.size} threads, ${mutes.length} mutes.`)
 console.log('Amara and Diego:', both.map((c) => `${c.mine} ${c.kind === 'same' ? '=' : '~'} ${c.theirs}`).join(', '))
-console.table([amara, diego, ...booths, organizer].map((p) => ({ persona: p.displayName, kind: p.kind, tagId: p.tagId, token: `demo-${p.tagId}` })))
+console.table([amara, diego, ...booths, organizer].map((p) => ({ persona: p.displayName, kind: p.kind, tagId: badge(p.id, p.tagId), token: `demo-${p.tagId}` })))

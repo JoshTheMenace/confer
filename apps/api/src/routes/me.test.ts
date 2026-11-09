@@ -98,3 +98,13 @@ test("photo '' removes the photo", async () => {
   const docs = Object.fromEntries(vi.mocked(es.update).mock.calls.map(([r]) => [r.index, r.doc]))
   expect(docs).toEqual({ vault: { photo: null }, profiles: { hasPhoto: false } })
 })
+
+test('a printed badge can be claimed by its number at sign-up, once', async () => {
+  expect((await (await signup({ tagId: 501 })).json()).me.tagId).toBe(501)
+  expect(vi.mocked(es.index).mock.calls[0][0]).toMatchObject({ index: 'tags', id: '501', op_type: 'create' })
+  vi.mocked(es.index).mockResolvedValueOnce({ result: 'noop' } as any)
+  const taken = await signup({ tagId: 501 })
+  expect(taken.status).toBe(409)
+  expect(await taken.json()).toEqual({ error: 'Badge 501 already belongs to someone' })
+  expect((await signup({ tagId: 587 })).status).toBe(400)
+})

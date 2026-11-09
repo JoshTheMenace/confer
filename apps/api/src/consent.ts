@@ -11,6 +11,20 @@ export type Relation = { subject: Profile; mine?: Meeting; theirs?: Meeting; sha
 
 // Deterministic ids make meetings, shares, requests and mutes idempotent and readable by id (real-time, no search refresh).
 export const pairId = (from: string, to: string) => `${from}_${to}`
+export async function allShares(query: { term: { to: string } } | { terms: { to: string[] } }, source?: string[]): Promise<Share[]> {
+  const size = 1000, found: Share[] = []
+  let after: any[] | undefined
+  for (;;) {
+    const page = await es.search<Share>({
+      index: ix.shares, size, query, ...(source && { _source: source }), sort: [{ from: 'asc' }, { to: 'asc' }], ...(after && { search_after: after }),
+    })
+    const hits = page.hits.hits
+    found.push(...hits.flatMap((h) => h._source ? [h._source] : []))
+    if (hits.length < size) return found
+    after = hits.at(-1)!.sort
+    if (!after) throw new Error('share search is missing sort values')
+  }
+}
 export const swap = (common: Common[] = []): Common[] => common.map((c) => ({ kind: c.kind, mine: c.theirs, theirs: c.mine }))
 export const toKind = (p: { kind: Kind }) => (p.kind === 'sponsor' ? 'booth' : 'peer')
 export const eventEndsAt = () => Date.parse(process.env.EVENT_ENDS_AT ?? '2026-11-09T18:30:00-07:00')

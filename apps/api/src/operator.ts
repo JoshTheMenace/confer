@@ -2,7 +2,7 @@
 // A share to a booth becomes a Role + RoleBinding in that booth's namespace; Unshare or expiry deletes them.
 import { setTimeout as sleep } from 'node:timers/promises'
 import { trace } from '@opentelemetry/api'
-import { bulk, pairId, type Share } from './consent.js'
+import { allShares, bulk, pairId } from './consent.js'
 import type { Profile } from './contract.js'
 import { es, ix } from './es.js'
 import { applyGrant, boothNamespace, createNamespace, deleteGrant, grantName, grantOf, kubernetes, listGrants, listNamespaces, reconcile } from './k8s.js'
@@ -12,10 +12,10 @@ const pass = () => span('grants.reconcile', {}, async () => {
   const sponsors = await es.search<Profile>({ index: ix.profiles, size: 1000, _source: ['displayName'], query: { term: { kind: 'sponsor' } } })
   const booths = new Map(sponsors.hits.hits.map((h) => [h._id!, h._source!.displayName]))
   const [shared, found, namespaces] = await Promise.all([
-    es.search<Share>({ index: ix.shares, size: 10_000, query: { terms: { to: [...booths.keys()] } } }),
+    allShares({ terms: { to: [...booths.keys()] } }),
     listGrants(), listNamespaces(),
   ])
-  const shares = new Map(shared.hits.hits.map((h) => [h._source!, grantOf(h._source!)]))
+  const shares = new Map(shared.map((s) => [s, grantOf(s)]))
   const plan = reconcile([...shares.values()], found, Date.now())
 
   const missing = new Set([...plan.create, ...plan.update].map((g) => g.booth).filter((id) => !namespaces.includes(boothNamespace(id))))
@@ -26,7 +26,7 @@ const pass = () => span('grants.reconcile', {}, async () => {
   const expired = [...shares].filter(([, g]) => plan.expire.includes(g)).map(([s]) => s), at = new Date().toISOString()
   await bulk(expired.flatMap((s) => [
     { delete: { _index: ix.shares, _id: pairId(s.from, s.to) } },
-    { index: { _index: ix.receipts } }, { owner: s.from, who: s.to, type: 'unshared', fields: s.fields, at, traceId: traceId() },
+    { create: { _index: ix.receipts, _id: `${pairId(s.from, s.to)}_${s.at}_expired` } }, { owner: s.from, who: s.to, type: 'unshared', fields: s.fields, at, traceId: traceId() },
   ]))
   await Promise.all(plan.expire.map((g) => deleteGrant({ namespace: boothNamespace(g.booth), name: grantName(g.attendee) })))
 

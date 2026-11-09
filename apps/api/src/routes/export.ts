@@ -2,7 +2,7 @@ import { trace } from '@opentelemetry/api'
 import { Hono } from 'hono'
 import { createMiddleware } from 'hono/factory'
 import { auth, type Me } from '../auth.js'
-import { bulk, cards, relations, type Share } from '../consent.js'
+import { allShares, bulk, cards, relations, type Share } from '../consent.js'
 import { contactFields, type Api, type Card } from '../contract.js'
 import { es, ix } from '../es.js'
 import { boothNamespace, canI, grantName, grantVerbs, kubernetes } from '../k8s.js'
@@ -21,9 +21,9 @@ const row = (card: Card, share: Share) => [
 
 /** Everyone who shares with this booth right now, and what Kubernetes says about each. */
 async function leads(viewer: Me) {
-  const shared = await es.search<Share>({ index: ix.shares, size: 1000, _source: ['from'], query: { term: { to: viewer.id } } })
+  const shared = await allShares({ term: { to: viewer.id } }, ['from'])
   // Shares are re-read by id: someone who unshared a second ago is not a lead, whatever search still says.
-  const { rels } = await relations(viewer, shared.hits.hits.map((h) => h._source!.from))
+  const { rels } = await relations(viewer, shared.map((s) => s.from))
   const current = rels.filter((r) => r.subject.kind === 'attendee' && r.shareIn)
   const answers = await Promise.all(current.map((r) => canI(viewer.id, 'export', r.subject.id)))
   return current.map((r, i) => ({ rel: r, share: r.shareIn!, kubernetes: answers[i] }))

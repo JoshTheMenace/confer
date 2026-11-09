@@ -45,7 +45,7 @@ async function myself(id: string): Promise<Me> {
 }
 
 export const me = new Hono<{ Variables: { me: Session } }>()
-  .post('/signup', zValidator('json', input.extend({ contact, photo: photo.optional(), code: z.string().optional(), tagId: z.number().int().min(0).max(586).optional() })), async (c) => {
+  .post('/signup', zValidator('json', input.extend({ contact, photo: photo.optional(), code: z.string().optional(), tagId: z.number().int().min(500).max(586).optional() })), async (c) => {
     const { contact, photo, code, tagId: wanted, ...profile } = c.req.valid('json')
     const kind: Kind | undefined = !code ? 'attendee' : code === process.env.SPONSOR_CODE ? 'sponsor' : code === process.env.ORGANIZER_CODE ? 'organizer' : undefined
     if (!kind) return c.json({ error: 'That code is not valid' }, 403)
@@ -55,7 +55,8 @@ export const me = new Hono<{ Variables: { me: Session } }>()
     const claim = async (t: number) => (await es.index({ index: ix.tags, id: String(t), op_type: 'create', document: { profile: id } }, { ignore: [409] })).result === 'created'
     let tagId = wanted
     if (wanted !== undefined) {
-      // They were handed a printed badge and typed its number.
+      // They were handed a printed badge and typed its number. Printed badges are 500 to 586; the app hands out 0 to 499 below,
+      // so the two can never collide. Every number stays inside the tag family (0 to 586): a higher one could not be drawn or scanned.
       if (!(await claim(wanted))) return c.json({ error: `Badge ${wanted} already belongs to someone` }, 409)
     } else {
       const taken = await es.search<{ tagId: number }>({ index: ix.profiles, size: 500, _source: ['tagId'], query: { range: { tagId: { lt: 500 } } } })

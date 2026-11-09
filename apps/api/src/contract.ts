@@ -126,7 +126,7 @@ export type Pulse = {
 
 /** Every route: `'METHOD /path'` → request body, query, and response. `:id` is a profile id unless noted. */
 export type Api = {
-  'POST /api/me/signup': { body: ProfileInput & { contact: Contact; photo?: string; code?: string /* sponsor or organizer code */; tagId?: number /* the number on a printed badge you were handed; omit to be given the next free one */ }; res: { token: string; me: Me } }
+  'POST /api/me/signup': { body: ProfileInput & { contact: Contact; photo?: string; code?: string /* sponsor or organizer code */; tagId?: number /* the number on a printed badge you were handed (500 to 586); omit to be given the next free one (0 to 499) */ }; res: { token: string; me: Me } }
   'GET /api/me': { res: { me: Me } }
   'PATCH /api/me': { body: Partial<ProfileInput> & { contact?: Contact; photo?: string /* '' removes it */ }; res: { me: Me } }
 

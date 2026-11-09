@@ -106,5 +106,6 @@ test('a printed badge can be claimed by its number at sign-up, once', async () =
   const taken = await signup({ tagId: 501 })
   expect(taken.status).toBe(409)
   expect(await taken.json()).toEqual({ error: 'Badge 501 already belongs to someone' })
-  expect((await signup({ tagId: 587 })).status).toBe(400)
+  expect((await signup({ tagId: 587 })).status).toBe(400) // outside the tag family: it could not be drawn or scanned
+  expect((await signup({ tagId: 3 })).status).toBe(400) // 0 to 499 are handed out by the app, never claimed
 })

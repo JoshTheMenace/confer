@@ -71,7 +71,7 @@ input:not([type='checkbox'], [type='radio']), textarea { display: block; width: 
 
 /* The reveal: the silhouette sits underneath and the photo wipes up over the bust in one continuous move. Then the stamp lands. */
 .portrait { position: relative; display: block; aspect-ratio: 1; width: 100%; border-radius: 14px; overflow: hidden; background: var(--paper); border: 2px solid var(--ink) }
-.portrait.lg { max-width: 190px; align-self: center } .portrait.sm { border-radius: 10px }
+.portrait.lg { max-width: 150px; align-self: center } .badge.person, .badge.caught { margin-top: 20px } .badge.caught { padding-top: 28px } .caught .who .portrait { width: 84px } .person .contact div { padding: 5px 0 } .portrait.sm { border-radius: 10px }
 .portrait img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block }
 .photo { position: absolute; inset: 0; clip-path: inset(100% 0 0 0); transition: clip-path .9s cubic-bezier(.6, 0, .3, 1) }
 .portrait.on .photo { clip-path: inset(0) }
@@ -123,7 +123,7 @@ details { border-top: 1.5px dashed var(--line); padding-top: 8px } summary { min
 .toast { position: absolute; left: 12px; right: 12px; top: 52px; z-index: 5; padding: 10px 14px; border-radius: 12px; background: var(--ink); color: var(--bg); font-weight: 700; box-shadow: var(--shadow); opacity: 0; transform: translateY(-12px); pointer-events: none; transition: opacity .25s, transform .25s }
 .toast.on { opacity: 1; transform: none }
 .connect { display: flex; flex-direction: column; gap: 8px; border-top: 1.5px dashed var(--line); padding-top: 10px } .openers { display: flex; flex-direction: column; gap: 6px }
-.opener { min-height: 44px; padding: 6px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: .92rem; font-weight: 600; text-align: left; cursor: pointer }
+.opener { min-height: 44px; padding: 4px 10px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: .85rem; line-height: 1.25; font-weight: 600; text-align: left; cursor: pointer }
 .opener[aria-pressed='true'] { border-color: var(--ink); background: var(--ink); color: var(--bg) } .opener[aria-pressed='true']::before { content: '✓ ' }
 .connect .row.end { align-items: center; flex-wrap: nowrap } .connect .row.end small { flex: 1 }
 .request header { flex-direction: row !important; gap: 12px; align-items: center } .request header .portrait { width: 64px; flex: none } .request header div { display: flex; flex-direction: column }
@@ -140,10 +140,10 @@ details { border-top: 1.5px dashed var(--line); padding-top: 8px } summary { min
 /* Stage: the projector view. A black stage, a giant wordmark, the story in huge type; the warm paper phones sit on top. */
 .stage { height: 100dvh; min-height: 640px; display: grid; grid-template-columns: minmax(0, 1fr) 390px 390px; gap: 0 28px; padding: 12px 28px; background: #0b0a09; color: #f8f1e5; overflow: hidden }
 .stage > header { display: flex; flex-direction: column; justify-content: space-between; gap: 16px; min-width: 0; padding: 6px 0 }
-.stage .wordmark { font-size: min(9.5vw, 136px); line-height: .9; letter-spacing: -.06em; color: #fff } .stage .wordmark::after { color: #ff5a3c }
+.stage > header .wordmark { font-size: min(9.5vw, 136px); line-height: .9; letter-spacing: -.06em; color: #fff } .stage > header .wordmark::after { color: #ff5a3c }
 .story { display: flex; flex-direction: column; gap: 14px; font-size: clamp(1.3rem, 2.3vw, 2rem); line-height: 1.2; font-weight: 600; color: #e6dccd } .story b { color: #ffd166 }
 .strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 18px; padding: 14px 18px; border-radius: 18px; background: #c2301a; color: #fff }
-.strip p { display: flex; flex-direction: column; line-height: 1.05 } .strip b { font-size: clamp(2rem, 3.6vw, 3.2rem); font-variant-numeric: tabular-nums; letter-spacing: -.03em } .strip span { font-size: 1rem; font-weight: 700 }
+.strip p { display: flex; flex-direction: column; line-height: 1.05 } .strip b { font-size: clamp(2rem, 3.6vw, 3.2rem); font-variant-numeric: tabular-nums; letter-spacing: -.03em } .strip p > span { font-size: 1rem; font-weight: 700 }
 .strip .live { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 8px; font-weight: 800 } .strip .live::before { content: ''; width: 12px; height: 12px; border-radius: 50%; background: #fff }
 .phone-wrap { display: flex; flex-direction: column; gap: 6px; align-items: center; min-height: 0 }
 .switch { display: flex; gap: 4px } .switch button { min-height: 44px; padding: 0 10px; border-radius: 22px; border: 1.5px solid #f8f1e5; background: transparent; color: #f8f1e5; font: inherit; font-weight: 700; font-size: .85rem; cursor: pointer } .switch [aria-pressed='true'] { background: #f8f1e5; color: #0b0a09 }

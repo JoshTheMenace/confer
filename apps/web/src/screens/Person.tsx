@@ -25,8 +25,7 @@ export function PersonScreen({ id }: { id: string }) {
         {they && <Stamp>Shared with you</Stamp>}
         <h1 tabIndex={-1}>{who(card)} {card.pronouns && <small>{card.pronouns}</small>}</h1>
         {they ? <>{they.role && <p className="role">{they.role}</p>}<ContactCard they={they} /></> : <p className="note">A silhouette until {name} taps Share. Nobody is judged on a photo first.</p>}
-        <p className="row"><ApproachChip approach={card.approach} />{card.commPref && <span className="muted">Prefers: {card.commPref}</span>}</p>
-        {last && <blockquote className="last"><small>{last.from === 'me' ? 'You' : name} wrote</small>{last.text}</blockquote>}
+        {last &&<blockquote className="last"><small>{last.from === 'me' ? 'You' : name} wrote</small>{last.text}</blockquote>}
         <Connect card={card} />
         {card.iShared ? (
           <div className="row had">
@@ -41,6 +40,7 @@ export function PersonScreen({ id }: { id: string }) {
         )}
         <Problem error={act.error} retry={act.retry} />
         {receipt && !card.iShared && <ReceiptSlip receipt={receipt} name={name} />}
+        <p className="row"><ApproachChip approach={card.approach} />{card.commPref && <span className="muted">Prefers: {card.commPref}</span>}</p>
       </Badge>
       <CommonList common={card.common} them={name} />
       {!card.iShared && (

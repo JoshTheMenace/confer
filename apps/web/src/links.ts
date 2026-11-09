@@ -37,7 +37,7 @@ export function openers(card: Pick<Card, 'common' | 'name'>): string[] {
   const related = card.common.find((c) => c.kind === 'related'), same = card.common.find((c) => c.kind === 'same')
   return [
     related && `Your ${related.theirs} meets my ${related.mine}. Swap stories?`,
-    same && `We both picked ${same.mine}. Compare notes?`,
-    'Good to meet you. Talk when the hall is quieter?',
+    same && `Both into ${same.mine}. Compare notes?`,
+    'Good to meet you. Coffee later?',
   ].filter((s): s is string => !!s)
 }

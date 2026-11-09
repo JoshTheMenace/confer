@@ -11,6 +11,7 @@ import { PersonScreen } from './screens/Person'
 import { PulseScreen, usePulse } from './screens/Pulse'
 import { MeScreen, Onboarding, PrintScreen } from './screens/profile'
 import { ScanScreen } from './screens/Scan'
+import { Scenery } from './Scenery'
 import { AppCtx, Count, Icon, type IconName, Problem, usePoll, who } from './ui'
 
 const tabs: Record<Kind, [route: string, label: string, icon: IconName][]> = {
@@ -127,21 +128,23 @@ const pct = (n: number) => `${Math.round(n * 100)}%`
 export function Stage() {
   const { data } = usePulse(useMemo(() => ({ slot: 'stage', token: personas.organizer[1] }), []))
   const t = data?.totals, p95 = data?.health.p95Ms
-  const numbers: [string, number, ((n: number) => string)?][] = t ? [['met', t.meetings], ['shared', t.shares], ['unshared', t.unshares], ['requests', t.requests], ['share rate', t.shareRate, pct]] : []
+  const numbers: [string, number, ((n: number) => string)?][] = t ? [['Meetings', t.meetings], ['Shared', t.shares], ['Unshared', t.unshares], ['Requests', t.requests], ['Share rate', t.shareRate, pct]] : []
   return (
     <div className="stage">
+      <Scenery />
       <header>
         <p className="wordmark">Confer</p>
+        <p className="tagline">The front of your badge says hi. <b>Only you say yes.</b></p>
         <ol className="story">
-          <li><b>Scan</b> a badge. You get a silhouette and what you have in common.</li>
-          <li><b>Connect</b> with one line saying why. They decide.</li>
-          <li><b>Share</b> only when you tap. <b>Unshare</b> removes it, with a receipt.</li>
+          <li><b>Scan</b> A silhouette and what you have in common.</li>
+          <li><b>Connect</b> Say why. They decide.</li>
+          <li><b>Share</b> Your card moves only when you tap. Unshare removes it, with a receipt.</li>
         </ol>
         <section className="strip" aria-label={isMock ? 'Event numbers, sample data' : 'Event numbers, live'}>
           <p className="live">{isMock ? 'Sample data' : 'Live'}</p>
-          {numbers.map(([label, value, format]) => <p key={label}><b><Count value={value} format={format} /></b><span>{label}</span></p>)}
-          {t && <p><b>{p95 === undefined ? '–' : <Count value={p95} />}</b><span>p95 ms</span></p>}
-          {!t && <p className="muted">Numbers are warming up…</p>}
+          {numbers.map(([label, value, format]) => <p className="stat" key={label}><b><Count value={value} format={format} /></b><span>{label}</span></p>)}
+          {t && <p className="stat"><b>{p95 === undefined ? '–' : <Count value={p95} />}</b><span>p95 ms</span></p>}
+          {!t && <p className="warming">Numbers are warming up…</p>}
         </section>
       </header>
       <Phone slot="left" initial={(flag('left') as Persona) ?? 'amara'} start={flag('l') ?? 'scan'} />

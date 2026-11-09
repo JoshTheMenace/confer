@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react'
 import type { Api, Approach, AutoShare, Me } from '../../../api/src/contract'
 import { call, isMock, personas, type Session } from '../api'
 import { BadgeSheet, TagSvg } from '../scan'
+import { Scenery } from '../Scenery'
 import { Silhouette } from '../Silhouette'
 import { approachLabel, FieldPicker, Problem, useApp } from '../ui'
 
@@ -116,6 +117,7 @@ export function Onboarding({ session, onToken }: { session: Session; onToken: (t
   }
   return (
     <main className="screen onboarding">
+      <Scenery className="band" />
       {step === 0 && (
         <header className="hero">
           <p className="wordmark">Confer</p>

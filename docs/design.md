@@ -16,7 +16,7 @@
 | No way to talk without swapping details | **Text chat** inside every request. The first message is the reason; the other person gets a **message request** they can open if they want, answer, ignore or mute. Chat never reveals more than the card: sharing stays a separate tap. It is also the accessible way to talk in a loud hall. |
 | Booth scan creates a blanket consent request | Booth sees interests and fit, **no name**; sends a **request with a note and an attachment**; attendee gets the content either way and picks **Share / Ignore / Mute** |
 | Only the scanner keeps the meeting | Meeting lands in **both** people's list: that list is also the "who scanned me" log |
-| Exact tag overlap | Things in common = same tags **plus related tags** found with Elastic embeddings ("Tracing" ↔ "OpenTelemetry") |
+| Exact tag overlap | Things in common = same tags **plus related tags** judged by an Elastic reranker ("Distributed tracing" ↔ "OpenTelemetry") |
 
 Deferred to the roadmap (say so honestly, do not fake): private forwarding email addresses, the evening digest email, badge reissue. There is no limit on requests or messages; people Mute instead.
 

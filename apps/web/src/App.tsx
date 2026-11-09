@@ -143,7 +143,7 @@ export function Stage() {
         <p className="tagline">The front of your badge says hi. <b>Only you say yes.</b></p>
         <ol className="story">
           <li><b>Scan</b> A silhouette and what you have in common.</li>
-          <li><b>Connect</b> Say why. They decide.</li>
+          <li><b>Connect</b> One tap. No reason needed.</li>
           <li><b>Share</b> Your card moves only when you tap. Unshare removes it, with a receipt.</li>
         </ol>
         <section className="strip" aria-label={isMock ? 'Event numbers, sample data' : 'Event numbers, live'}>

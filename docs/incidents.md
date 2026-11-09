@@ -22,3 +22,21 @@ Real problems we hit while building, and how we found them.
 - **Symptom:** `kill <pid>` left the API running; found while restarting it during incident 2.
 - **Root cause:** the OTel register installs a SIGTERM handler (to flush telemetry), which replaces Node's default exit. In Kubernetes every rollout would wait out the full 30s grace period.
 - **Fix:** graceful shutdown in `apps/api/src/index.ts`: close the server, let telemetry flush, exit.
+
+## 4. Saves took 2–6 seconds (found with Dash0 Agent0)
+
+- **Symptom:** the consent inbox took seconds to save; API p95 was about 1.8s.
+- **Investigation:** we asked **Agent0** through the Dash0 MCP server (`runTask`) to find the slowest routes and which Elasticsearch calls dominate them. Full report: [evidence/agent0-latency.md](evidence/agent0-latency.md).
+- **Root cause (Agent0):** every write used `refresh: 'wait_for'`. On Elastic Serverless the refresh interval is 5s (also the minimum), so each write blocked 0–5s, which was 50–76% of every slow request. Also: two sequential profile searches per request, readiness probes pinging Elasticsearch every time, and server spans without `http.route`.
+- **Fix:** no `wait_for` on user-facing writes. Reads right after a write go by id (real-time `get`/`mget`, never a search), including login, which now resolves a token through a `tokens` doc keyed by its hash. Independent signup writes run in parallel. Readiness is checked in the background. Server spans are named by route.
+- **Measured live (laptop → Elastic Serverless):**
+
+| Route | Before (Agent0) | After |
+|---|---|---|
+| POST /api/consent/:id | 4.78s avg | 1.00s avg |
+| POST /api/catch | 3.74s avg | 1.59s avg |
+| POST /api/me/signup | 3.40s avg | 1.92s avg |
+| GET /api/me right after signup | could miss a brand-new profile | 0.63s, always found |
+
+A plain Serverless write still costs about 0.5s from here, a floor set by network and storage, not by our code.
+- **Trade-off (raised by Gitar in review):** lists that are *searches* (the Dex, sponsor counts, the inbox list) now see a new write after the next refresh, within ~5s. The Dex merges the cards you just caught so it never looks empty right after a scan; sponsor counts and new inbox requests lagging a few seconds is acceptable.

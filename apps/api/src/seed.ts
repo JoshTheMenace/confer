@@ -66,7 +66,8 @@ await ensureIndices()
 const res = await es.bulk({
   refresh: true,
   operations: [...attendees, ...sponsors].flatMap((p) => {
-    const _id = `seed-${p.tagId}`, profile = [{ index: { _index: 'profiles', _id } }, { ...p, tokenHash: hashToken(`demo-${p.tagId}`) }]
+    const _id = `seed-${p.tagId}`, hash = hashToken(`demo-${p.tagId}`)
+    const profile = [{ index: { _index: 'profiles', _id } }, { ...p, tokenHash: hash }, { index: { _index: 'tokens', _id: hash } }, { profile: _id, kind: p.kind, tagId: p.tagId }]
     if (p.kind === 'sponsor') return profile
     const handle = p.displayName.toLowerCase().replace(/\s+/g, '.')
     return [...profile, { index: { _index: 'vault', _id } }, { email: `${handle}@example.com`, linkedin: `https://linkedin.com/in/${handle}-example`, github: `${handle}-example` }]

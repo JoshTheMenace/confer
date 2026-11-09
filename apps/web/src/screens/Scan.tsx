@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api, call, type Card, type Me } from '../api'
+import { api, call, justCaught, type Card, type Me } from '../api'
 import { approaches } from '../lib'
 import { Scanner } from '../scan'
 import { PersonCard, Problem } from '../ui'
@@ -13,6 +13,7 @@ export function Scan({ me }: { me: Me }) {
   const onCatch = async (tagIds: number[]) => {
     try {
       const { cards } = await call(api.api.catch.$post({ json: { tagIds } }))
+      justCaught.unshift(...cards.map((c) => ({ ...c, caughtAt: new Date().toISOString() })))
       setError(undefined)
       setSaid(cards.length
         ? cards.map((c) => `${c.badge.displayName}: ${approaches[c.badge.approach].label}`).join('. ')

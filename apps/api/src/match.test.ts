@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { typeOf } from './dexTypes.js'
 import { buildMatchQuery, peerCard, sharedInterests, templateWhy, type Profile } from './match.js'
 
-const es = vi.hoisted(() => ({ search: vi.fn(), get: vi.fn() }))
+const es = vi.hoisted(() => ({ search: vi.fn(), get: vi.fn(), index: vi.fn() }))
 vi.mock('./es.js', () => ({ es }))
 const { matches } = await import('./routes/matches.js')
 
@@ -73,7 +73,7 @@ describe('routes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     delete process.env.OPENAI_API_KEY
-    es.get.mockImplementation(async ({ id }) => ({ me: { _source: ana }, b: { _source: { ...ben, interestsVisibleTo: ['peers'] } } } as any)[id] ?? Promise.reject(new Error('404')))
+    es.get.mockImplementation(async ({ index, id }) => index === 'tokens' ? {} : ({ me: { _source: ana }, b: { _source: { ...ben, interestsVisibleTo: ['peers'] } } } as any)[id] ?? Promise.reject(new Error('404')))
     es.search.mockImplementation(async ({ query }) => query?.term?.tokenHash
       ? { hits: { hits: [{ _id: 'me', _source: ana }] } }
       : { hits: { hits: [{ _id: 'b', _score: 0.5, _source: { ...ben, interestsVisibleTo: ['peers'] } }] } })
@@ -94,7 +94,7 @@ describe('routes', () => {
     expect((await call('/b/why')).status).toBe(403)
   })
   test('why refuses people who opted out of matchmaking', async () => {
-    es.get.mockImplementation(async ({ id }) => ({ me: { _source: ana }, b: { _source: { ...ben, discoverable: false, interestsVisibleTo: ['peers'] } } } as any)[id])
+    es.get.mockImplementation(async ({ index, id }) => index === 'tokens' ? {} : ({ me: { _source: ana }, b: { _source: { ...ben, discoverable: false, interestsVisibleTo: ['peers'] } } } as any)[id])
     expect((await call('/b/why')).status).toBe(404)
   })
 })

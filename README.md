@@ -25,7 +25,7 @@ You can also set a rule in advance ("booths I starred get my card"). It is off u
 
 Why a sponsor wants this: a lead list of people who said yes (each with the note that worked), matching attendees who opted in but never walked past, and share rate per pitch. More in [docs/design.md](docs/design.md).
 
-Not built yet, and not shown as working: private forwarding email addresses, the evening digest, badge reissue.
+Not built yet, and not shown as working: private forwarding email addresses, the evening digest, badge reissue, and a claim code that proves you hold the badge whose number you type at sign-up.
 
 ## How it works
 

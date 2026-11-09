@@ -9,8 +9,6 @@ import { es, ix } from '../es.js'
 import { log } from '../telemetry.js'
 
 const MAX_INTEREST_EDITS = 5
-const FIRST_AUTO_TAG_ID = 587
-const AUTO_TAG_COUNT = 500
 const tag = z.string().trim().min(1).max(40)
 const handle = z.string().trim().max(200)
 export const attachment = z.object({ url: z.string().max(500).regex(/^https?:\/\/\S+$/), label: z.string().trim().min(1).max(80) })
@@ -57,16 +55,12 @@ export const me = new Hono<{ Variables: { me: Session } }>()
     const claim = async (t: number) => (await es.index({ index: ix.tags, id: String(t), op_type: 'create', document: { profile: id } }, { ignore: [409] })).result === 'created'
     let tagId = wanted
     if (wanted !== undefined) {
-      // A legacy profile may have no tags-index lock, so check profiles before claiming its printed number.
-      const existing = await es.search<{ tagId: number }>({ index: ix.profiles, size: 1, _source: ['tagId'], query: { term: { tagId: wanted } } })
-      if (existing.hits.hits.some((h) => h._source?.tagId === wanted) || !(await claim(wanted)))
-        return c.json({ error: `Badge ${wanted} already belongs to someone` }, 409)
+      // They were handed a printed badge and typed its number.
+      if (!(await claim(wanted))) return c.json({ error: `Badge ${wanted} already belongs to someone` }, 409)
     } else {
-      // 0–586 are printed badge numbers; auto-assigned IDs live outside that range.
-      const lastAutoTagId = FIRST_AUTO_TAG_ID + AUTO_TAG_COUNT - 1
-      const taken = await es.search<{ tagId: number }>({ index: ix.profiles, size: AUTO_TAG_COUNT, _source: ['tagId'], query: { range: { tagId: { gte: FIRST_AUTO_TAG_ID, lte: lastAutoTagId } } } })
+      const taken = await es.search<{ tagId: number }>({ index: ix.profiles, size: 500, _source: ['tagId'], query: { range: { tagId: { lt: 500 } } } })
       const takenTags = new Set(taken.hits.hits.map((h) => h._source!.tagId))
-      for (let t = FIRST_AUTO_TAG_ID; t <= lastAutoTagId && tagId === undefined; t++) if (!takenTags.has(t) && (await claim(t))) tagId = t
+      for (let t = 0; t < 500 && tagId === undefined; t++) if (!takenTags.has(t) && (await claim(t))) tagId = t
     }
     if (tagId === undefined) return c.json({ error: 'No badges left' }, 409)
     const mine = { ...profile, tagId, kind, starred: [], hasPhoto: !!photo }

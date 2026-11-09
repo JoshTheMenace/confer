@@ -6,7 +6,7 @@ actions: Request changes if a search, match, or listing reads the vault index
 type: check
 ---
 
-Contact data lives in the `vault` index. Search, matchmaking, catches, and sponsor
-aggregates must only use `profiles`, `catches`, `consent_requests`, and `receipts`.
-The `vault` index may only be read in code that first checks for a `granted` consent
-request (or a mutual catch) and then writes a `receipts` entry for the read.
+Contact data and photos live in the vault index (`ix.vault`). Search, discovery, scans,
+and booth or organizer totals must never read it. The vault may only be read for its owner,
+or in code that first finds an existing share from the owner to the viewer (`ix.shares`)
+and then writes a `receipts` entry for the read.

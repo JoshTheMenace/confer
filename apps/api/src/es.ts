@@ -36,8 +36,39 @@ const indices = {
   receipts: { attendee: { type: 'keyword' }, viewer: { type: 'keyword' }, fields: { type: 'keyword' }, at: { type: 'date' } },
 } as const
 
+// Silhouette data model. Index names carry a prefix so a dev or test run never touches the live event's data.
+const prefix = process.env.ES_INDEX_PREFIX ?? 'confer_'
+const kw = { type: 'keyword' }, date = { type: 'date' }, text = { type: 'text' }, bool = { type: 'boolean' }
+const stored = { type: 'keyword', index: false, doc_values: false } // kept in _source only: never searchable
+const v2 = {
+  profiles: {
+    tagId: { type: 'integer' }, kind: kw, displayName: text, pronouns: kw, approach: kw, commPref: text,
+    role: { ...text, copy_to: 'about_semantic' },
+    interests: { ...kw, copy_to: 'about_semantic' },
+    lookingFor: { ...kw, copy_to: 'about_semantic' },
+    about: { ...text, copy_to: 'about_semantic' },
+    stuckOn: { ...text, copy_to: 'about_semantic' },
+    about_semantic: { type: 'semantic_text' },
+    discoverable: bool, openToBooths: bool, boothsSeeName: bool, autoShare: kw, shareFields: kw, starred: kw, hasPhoto: bool,
+    interestEdits: { type: 'integer' }, // capped, so interests can't be cycled to probe other people's
+    pitch: text, attachment: { properties: { url: stored, label: text } },
+    tokenHash: kw, // never returned to clients
+  },
+  vault: { email: kw, linkedin: kw, github: kw, photo: stored }, // the sealed envelope: read only through a share
+  tags: { profile: kw }, // badge-number lock: _id = tagId
+  tokens: { profile: kw, kind: kw, tagId: { type: 'integer' } }, // _id = token hash
+  meetings: { scanner: kw, scanned: kw, kind: kw /* peer | booth */, source: kw, at: date, common: { properties: { kind: kw, mine: kw, theirs: kw } } }, // _id = scanner_scanned
+  shares: { from: kw, to: kw, fields: kw, via: kw /* manual | auto | request */, note: text, at: date }, // _id = from_to; deleting it is Unshare
+  requests: { booth: kw, attendee: kw, note: { ...text, fields: { raw: kw } }, attachment: { properties: { url: stored, label: text } }, status: kw, source: kw, createdAt: date, expiresAt: date }, // _id = booth_attendee
+  mutes: { attendee: kw, booth: kw, at: date }, // _id = attendee_booth
+  receipts: { owner: kw, who: kw, type: kw /* shared | opened | unshared */, fields: kw, at: date, traceId: kw },
+  talks: { title: { ...text, copy_to: 'semantic' }, speaker: text, abstract: { ...text, copy_to: 'semantic' }, track: kw, room: kw, startsAt: date, endsAt: date, topics: { ...kw, copy_to: 'semantic' }, semantic: { type: 'semantic_text' } },
+} as const
+/** Index names: `ix.profiles`, `ix.vault`, ... Always go through this, never a string literal. */
+export const ix = Object.fromEntries(Object.keys(v2).map((name) => [name, prefix + name])) as { [K in keyof typeof v2]: string }
+
 export async function ensureIndices() {
-  for (const [name, properties] of Object.entries(indices)) {
+  for (const [name, properties] of [...Object.entries(indices), ...Object.entries(v2).map(([n, p]) => [prefix + n, p] as const)]) {
     if (!(await es.indices.exists({ index: name }))) await es.indices.create({ index: name, mappings: { properties } as any })
   }
 }

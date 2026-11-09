@@ -1,7 +1,8 @@
 # How we write code here
 
 - **Fewest lines that meet the requirement.** Prefer the clean, boring fix over a clever one. Flag dead code, unused exports, and abstractions with a single caller.
-- **TypeScript end to end.** API routes are chained `new Hono()` groups mounted with one `.route()` line in `apps/api/src/app.ts`, so the web client (`hc<AppType>`) stays typed. Flag routes that break this chain or cast to `any` to get around it.
+- **One contract.** `apps/api/src/contract.ts` (types only) is the source of truth for every route. Handlers return `satisfies Api['METHOD /path']['res']` and the web client is typed by the same `Api` map. Flag a route, field or response that is not in the contract, and any `any` cast used to get around it.
+- **Index names go through `ix`** (`apps/api/src/es.ts`), never a string literal, so dev and test runs use their own prefix and never touch live event data.
 - **Validate every request body with zod** (`zValidator`). Flag handlers that read `c.req.json()` directly.
 - **Elasticsearch is the only database.** No new datastores, caches with state that must survive restarts, or local files.
 - **Comments explain why, not what.** Flag comments that restate the code.

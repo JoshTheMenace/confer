@@ -76,12 +76,13 @@ test('interests can be changed 5 times, then a 409 explains why', async () => {
   expect(es.update).not.toHaveBeenCalled()
 })
 
-test('two interest edits at once: the write is conditional, and the loser gets a 409 instead of an extra edit', async () => {
+test('two interest edits at once: the loser gets a 409 without saving contact or photo', async () => {
   stored(4)
   vi.mocked(es.get).mockImplementation((async ({ index }: { index: string }) =>
     ({ _seq_no: 7, _primary_term: 1, _source: index === 'tokens' ? { profile: 'p1', kind: 'attendee', tagId: 1 } : { ...body, interestEdits: 4 } })) as any)
   vi.mocked(es.update).mockRejectedValue({ statusCode: 409 })
-  expect((await send('PATCH', '/', { interests: ['Go', 'Rust', 'Cilium'] })).status).toBe(409)
+  expect((await send('PATCH', '/', { interests: ['Go', 'Rust', 'Cilium'], contact: { email: 'new@example.com' }, photo: '' })).status).toBe(409)
+  expect(vi.mocked(es.update).mock.calls.map(([r]) => r.index)).toEqual(['profiles'])
   expect(vi.mocked(es.update).mock.calls[0][0]).toMatchObject({ index: 'profiles', if_seq_no: 7, if_primary_term: 1 })
 })
 

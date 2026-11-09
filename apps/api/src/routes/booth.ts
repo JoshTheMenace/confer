@@ -51,9 +51,11 @@ export const booth = new Hono<{ Variables: { me: Me } }>()
     const viewer = c.var.me, body = c.req.valid('json')
     if (body.attachment && !body.attachment.url.startsWith('https://')) return c.json({ error: 'The attachment link must start with https://' }, 400)
     const { me, rels } = await relations(viewer, [...new Set(body.to)])
-    // Attendees only, and only the ones this booth may write to. Someone who muted the booth still counts as sent: a mute is never revealed.
-    const to = rels.filter((r) => r.subject.kind === 'attendee' && (r.thread || !cannotStart(viewer, r.subject, r.mine)))
-    const sent = await Promise.all(to.map((r) => send(me, r, body.note, r.thread ? undefined : body.attachment)))
+    // Attendees only, the ones this booth may write to, and only to START a conversation: anyone who already has a thread with
+    // this booth (answered, ignored or still deciding) is never written to from here, so repeating the call cannot flood anyone.
+    // Someone who muted the booth still counts as sent: a mute is never revealed.
+    const to = rels.filter((r) => r.subject.kind === 'attendee' && !r.thread && !cannotStart(viewer, r.subject, r.mine))
+    const sent = await Promise.all(to.map((r) => send(me, r, body.note, body.attachment)))
     if (sent.some((s) => s.first)) refreshSoon(ix.threads) // the inbox is a search: without this a new request takes up to 5s to reach the other person
     // The attendee's own rule, set before this request: starred or matching booths get the card at once.
     const auto = to.filter((r, i) => !r.shareIn && !r.mutedMe && autoShares(r.subject, viewer.id, sent[i].doc.why))

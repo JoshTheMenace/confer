@@ -137,6 +137,12 @@ describe('routes', () => {
     expect(vi.mocked(es.update).mock.calls[0][0]).toMatchObject({ id: 'ana_ben', script: { params: { open: true, read: 'readA', m: { from: 'ana', text: 'Hi Ben' } } } })
   })
 
+  test('after an Ignore the sender can still write, but the recipient never sees or counts it', async () => {
+    as(ben, ana, { thread: doc({ status: 'ignored' }) })
+    expect((await call('/ana', { text: 'Did you see my note?' })).status).toBe(200) // never reveals the ignore
+    expect(vi.mocked(es.update).mock.calls[0][0]).toMatchObject({ script: { params: { open: false, m: { from: 'ben', hidden: true } } } })
+  })
+
   test('reading a chat marks it read for the reader only, and only when something is unread', async () => {
     as(ana, ben, { thread: doc() })
     expect(await (await call('/ben')).json()).toMatchObject({ thread: { id: 'ben', unread: 0, startedBy: 'them' }, messages: [{ from: 'them', text: 'Hi Ana' }] })

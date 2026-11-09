@@ -3,7 +3,6 @@ import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { auth, hashToken, tokenLink, type Me as Session } from '../auth.js'
-import { embed } from '../common.js'
 import { openVault } from '../consent.js'
 import { contactFields, type Api, type Kind, type Me, type Profile } from '../contract.js'
 import { es, ix } from '../es.js'
@@ -69,7 +68,6 @@ export const me = new Hono<{ Variables: { me: Session } }>()
       es.index({ index: ix.profiles, id, document: { ...mine, interestEdits: 0, tokenHash: hashToken(token) } }),
       es.index(tokenLink(hashToken(token), { id, kind, tagId })),
     ])
-    void embed(profile.interests, 20_000).catch(() => {}) // ready before their first scan
     log.info({ profile: id, tagId, kind }, 'signup')
     return c.json({ token, me: { ...mine, id, contact, ...(photo && { photo }) } } satisfies Api['POST /api/me/signup']['res'])
   })
@@ -89,14 +87,18 @@ export const me = new Hono<{ Variables: { me: Session } }>()
         if (edits >= MAX_INTEREST_EDITS)
           return c.json({ error: `You have changed your interests ${MAX_INTEREST_EDITS} times, which is the limit. It stops anyone from swapping tags to work out what other people are into.` }, 409)
         interestEdits = edits + 1
-        void embed(profile.interests, 20_000).catch(() => {})
       }
     }
-    const saved = await Promise.all([
-      (contact || photo !== undefined) && es.update({ index: ix.vault, id, doc: { ...contact, ...(photo !== undefined && { photo: photo || null }) }, doc_as_upsert: true }),
-      es.update({ index: ix.profiles, id, ...(interestCondition ?? {}), doc: { ...profile, ...(photo !== undefined && { hasPhoto: !!photo }), ...(interestEdits && { interestEdits }) } }),
-    ]).catch((err) => (err?.statusCode === 409 ? null : Promise.reject(err)))
-    // Two edits at once: the second loses instead of slipping past the interest-edit cap.
-    if (!saved) return c.json({ error: 'Your profile was changed somewhere else at the same moment. Please try again.' }, 409)
+    // The conditional profile write goes first: if it loses a race, nothing else (contact, photo) is saved either.
+    try {
+      await es.update({ index: ix.profiles, id, ...(interestCondition ?? {}), doc: { ...profile, ...(photo !== undefined && { hasPhoto: !!photo }), ...(interestEdits && { interestEdits }) } })
+    } catch (err) {
+      // Two edits at once: the second loses instead of slipping past the interest-edit cap.
+      if (err && typeof err === 'object' && 'statusCode' in err && err.statusCode === 409)
+        return c.json({ error: 'Your profile was changed somewhere else at the same moment. Please try again.' }, 409)
+      throw err
+    }
+    if (contact || photo !== undefined)
+      await es.update({ index: ix.vault, id, doc: { ...contact, ...(photo !== undefined && { photo: photo || null }) }, doc_as_upsert: true })
     return c.json({ me: await myself(id) } satisfies Api['PATCH /api/me']['res'])
   })

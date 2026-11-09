@@ -88,13 +88,15 @@ const append = `def s = ctx._source; s.messages.add(params.m); if (s.messages.si
   s.lastAt = params.m.at; s[params.read] = params.m.at; if (params.open) s.status = 'open'`
 /**
  * The one way a message is sent. No thread yet: it becomes a message request. A reply from the recipient opens the chat.
- * The caller has already checked `cannotStart`. If the recipient muted the sender it is stored `hidden`, so the sender can't tell.
+ * The caller has already checked `cannotStart`. If the recipient muted the sender, or ignored the sender's request, the message is
+ * stored `hidden`: the recipient never sees or counts it, and the sender can't tell.
  */
 export function send(me: Profile, r: Relation, text: string, attachment?: Attachment): Promise<{ doc: ThreadDoc; message: Msg; first: boolean }> {
   const them = r.subject, old = r.thread, to = toKind(them), id = threadId(me.id, them.id)
   return span('message.send', { to, first: !old }, async () => {
     const at = new Date().toISOString(), [a] = [me.id, them.id].sort(), read = readKey({ a }, me.id)
-    const message: Msg = { id: randomUUID(), from: me.id, text, at, ...(r.mutedMe && { hidden: true }) }
+    const unwelcome = r.mutedMe || (old?.status === 'ignored' && old.startedBy === me.id)
+    const message: Msg = { id: randomUUID(), from: me.id, text, at, ...(unwelcome && { hidden: true }) }
     const open = !!old && old.startedBy !== me.id && old.status !== 'open'
     const doc: ThreadDoc = old ? { ...old, messages: [...old.messages, message].slice(-200), lastAt: at, [read]: at, ...(open && { status: 'open' }) } : {
       a, b: a === me.id ? them.id : me.id, startedBy: me.id, kind: toKind(me), status: 'request', source: r.mine || r.theirs ? 'scan' : 'match',
@@ -133,14 +135,16 @@ export async function bulk(operations: object[]) {
 
 // The single vault read path. A read for someone else needs the owner's share doc and leaves an `opened` receipt:
 // one per owner and viewer (stable id), stamped with the latest read. People polls every 2 seconds and a write costs
-// about 0.5s, so the stamp is refreshed at most once a minute.
+// about 0.5s, so the stamp is refreshed at most once a minute per share. The key includes the share's own time,
+// so an unshare followed by a new share is always stamped on its first read.
 const stamped = new Map<string, number>()
+const stampKey = (owner: string, viewer: string, share?: Share) => `${pairId(owner, viewer)}@${share?.at ?? ''}`
 export function openVault(viewer: string, reads: { owner: string; share?: Share }[]): Promise<Map<string, Vault>> {
   const allowed = reads.filter((r) => r.owner === viewer || (r.share?.from === r.owner && r.share.to === viewer))
   if (!allowed.length) return Promise.resolve(new Map())
   return span('vault.read', { count: allowed.length }, async () => {
     const at = new Date().toISOString()
-    const due = allowed.filter((r) => r.owner !== viewer && Date.now() - (stamped.get(pairId(r.owner, viewer)) ?? 0) > 60_000)
+    const due = allowed.filter((r) => r.owner !== viewer && Date.now() - (stamped.get(stampKey(r.owner, viewer, r.share)) ?? 0) > 60_000)
     const [vaults] = await Promise.all([
       sources(allowed.map((r) => ({ _index: ix.vault, _id: r.owner }))),
       bulk(due.flatMap((r) => [
@@ -148,7 +152,7 @@ export function openVault(viewer: string, reads: { owner: string; share?: Share 
         { owner: r.owner, who: viewer, type: 'opened', fields: r.share!.fields, at, traceId: traceId() },
       ])),
     ])
-    for (const r of due) stamped.set(pairId(r.owner, viewer), Date.now())
+    for (const r of due) stamped.set(stampKey(r.owner, viewer, r.share), Date.now())
     for (const r of allowed) vaultReads.add(1, { reason: r.owner === viewer ? 'self' : 'share' })
     return new Map(allowed.map((r, i) => [r.owner, vaults[i] ?? {}]))
   })

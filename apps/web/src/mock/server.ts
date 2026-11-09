@@ -1,8 +1,9 @@
-import type { Api, BoothRequest, Card, Common, ContactField, Lead, Me, Receipt, Term, Visitor } from '../../../api/src/contract'
+import type { Api, Attachment, Card, Common, ContactField, Lead, Me, Message, Receipt, Term, Thread, Visitor } from '../../../api/src/contract'
 import { profiles, related, talks } from './fixtures'
 
 type Req<K extends keyof Api> = { params: Record<string, string>; body: Api[K] extends { body: infer B } ? B : undefined; query: Api[K] extends { query: infer Q } ? Q : undefined }
-type Stored = BoothRequest & { to: string; from: string }
+/** One conversation. `a` wrote first; `why` is frozen from `a`'s side; `seen` is how many messages each side has read. */
+type Conv = { a: string; b: string; status: Thread['status']; why: Common[]; source: Thread['source']; attachment?: Attachment; msgs: { id: string; from: string; text: string; at: string }[]; seen: Record<string, number>; createdAt: string }
 type Share = { at: string; fields: ContactField[]; via: Lead['via'] }
 type Meet = { at: string; by: Set<string>; first: string; common: Common[] } // common is frozen from `first`'s side
 
@@ -26,9 +27,9 @@ export function createMock(now: () => number = Date.now) {
   const people = new Map(profiles().map((p) => [p.id, p]))
   const meets = new Map<string, Meet>()
   const shares = new Map<string, Share>() // `${from}>${to}`
-  const requests: Stored[] = []
+  const convs = new Map<string, Conv>() // by pair
   const receipts = new Map<string, Receipt[]>()
-  const muted = new Set<string>() // `${attendee}>${booth}`
+  const muted = new Set<string>() // `${who muted}>${sender}`
   const events: { t: number; type: 'scan' | 'share' | 'unshare' | 'request' }[] = []
   let seq = 0
   const iso = (back = 0) => new Date(now() - back).toISOString()
@@ -38,18 +39,22 @@ export function createMock(now: () => number = Date.now) {
   const get = (id: string) => { const p = people.get(id); if (!p) throw new Error('We could not find that person.'); return p }
   const fit = (c: Common[]) => Math.min(98, 35 + c.length * 21)
   const log = (owner: string, r: Omit<Receipt, 'id' | 'at' | 'traceId'>) => receipts.set(owner, [{ ...r, id: `r${++seq}`, at: iso(), traceId: trace() }, ...(receipts.get(owner) ?? [])])
+  const flip = (common: Common[]) => common.map((c) => ({ ...c, mine: c.theirs, theirs: c.mine }))
+  const unread = (me: string, c: Conv) => c.msgs.slice(c.seen[me] ?? 0).filter((m) => m.from !== me).length
+  const message = (me: string, m: Conv['msgs'][number]): Message => ({ id: m.id, from: m.from === me ? 'me' : 'them', text: m.text, at: m.at })
 
   function card(viewer: Me, s: Me): Card {
-    const meet = meets.get(pair(viewer.id, s.id))
+    const meet = meets.get(pair(viewer.id, s.id)), conv = convs.get(pair(viewer.id, s.id))
     const theirs = shares.get(`${s.id}>${viewer.id}`), mine = shares.get(`${viewer.id}>${s.id}`)
     const booth = s.kind === 'sponsor', toBooth = viewer.kind === 'sponsor' && s.kind === 'attendee'
     return {
       id: s.id, tagId: s.tagId, kind: s.kind, approach: s.approach, pronouns: s.pronouns, commPref: s.commPref,
       name: toBooth && !s.boothsSeeName && !theirs ? null : s.displayName,
-      common: !meet ? commonOf(viewer.interests, s.interests) : meet.first === viewer.id ? meet.common : meet.common.map((c) => ({ ...c, mine: c.theirs, theirs: c.mine })),
+      common: !meet ? commonOf(viewer.interests, s.interests) : meet.first === viewer.id ? meet.common : flip(meet.common),
       met: meet && { at: meet.at, by: meet.by.size > 1 ? 'both' : meet.by.has(viewer.id) ? 'me' : 'them' },
       theyShared: theirs && { at: theirs.at, fields: theirs.fields, contact: Object.fromEntries(theirs.fields.map((f) => [f, s.contact[f]])), photo: s.photo, role: s.role },
       iShared: mine && { at: mine.at, fields: mine.fields },
+      thread: conv && { status: conv.status, startedBy: conv.a === viewer.id ? 'me' : 'them', unread: unread(viewer.id, conv) },
       ...(booth && { role: s.role, interests: s.interests, about: s.about, pitch: s.pitch, attachment: s.attachment, starred: viewer.starred.includes(s.id), muted: muted.has(`${viewer.id}>${s.id}`) }),
       ...(toBooth && { interests: s.interests, stuckOn: s.openToBooths ? s.stuckOn : undefined }),
     }
@@ -65,26 +70,67 @@ export function createMock(now: () => number = Date.now) {
     })
   }
 
-  function share(me: Me, id: string, fields = me.shareFields, via: Lead['via'] = 'manual', back = 0) {
+  function share(me: Me, id: string, fields = me.shareFields, via?: Lead['via'], back = 0) {
     const s = get(id)
-    shares.set(`${me.id}>${id}`, { at: iso(back), fields, via })
+    // Sharing after the other side wrote first counts as won by their request.
+    shares.set(`${me.id}>${id}`, { at: iso(back), fields, via: via ?? (convs.get(pair(me.id, id))?.a === id ? 'request' : 'manual') })
     if (!back) { events.push({ t: now(), type: 'share' }); log(me.id, { type: 'shared', who: card(me, s), fields }) }
     return card(me, s)
   }
 
+  function thread(me: Me, c: Conv): Thread {
+    const other = c.a === me.id ? c.b : c.a, last = message(me.id, c.msgs.at(-1)!)
+    return {
+      id: other, with: card(me, get(other)), status: c.status, startedBy: c.a === me.id ? 'me' : 'them', why: c.a === me.id ? c.why : flip(c.why), source: c.source, attachment: c.attachment,
+      last: { text: last.text, at: last.at, from: last.from }, unread: unread(me.id, c), createdAt: c.createdAt, expiresAt: c.status === 'request' ? new Date(now() + 864e5).toISOString() : undefined,
+    }
+  }
+
+  /** The first message is a request in the other person's inbox; a reply from them opens the chat. */
+  function send(me: Me, to: string, text: string, attachment?: Attachment, back = 0) {
+    const other = get(to), k = pair(me.id, to)
+    if (!text.trim()) throw new Error('Write a line first.')
+    if (muted.has(`${to}>${me.id}`)) throw new Error('They are not taking messages from you.')
+    let c = convs.get(k)
+    if (!c) {
+      c = { a: me.id, b: to, status: 'request', why: card(me, other).common, source: meets.has(k) ? 'scan' : 'match', attachment, msgs: [], seen: {}, createdAt: iso(back) }
+      convs.set(k, c)
+      if (!back) events.push({ t: now(), type: 'request' })
+    } else if (c.status !== 'open') {
+      if (c.a === me.id) throw new Error('Your request is waiting for an answer.')
+      c.status = 'open'
+    }
+    const m = { id: `m${++seq}`, from: me.id, text: text.trim(), at: iso(back) }
+    c.msgs.push(m)
+    c.seen[me.id] = c.msgs.length
+    return { thread: thread(me, c), message: message(me.id, m) }
+  }
+
+  /** A booth's request is the same first message, plus the attachment. null: not sent. true: the attendee's settings shared right away. */
   function request(booth: Me, to: string, note: string, attachment = booth.attachment, back = 0) {
     const a = get(to)
-    if (muted.has(`${to}>${booth.id}`)) return null // muted booths cannot ask again
+    if (muted.has(`${to}>${booth.id}`) || convs.has(pair(to, booth.id))) return null
+    send(booth, to, note, attachment, back)
     const auto = a.autoShare === 'matching' ? commonOf(a.interests, booth.interests).length >= 2 : a.autoShare === 'starred' && a.starred.includes(booth.id)
-    requests.unshift({ id: `q${++seq}`, to, from: booth.id, booth: card(a, booth), note, attachment, why: commonOf(a.interests, booth.interests), status: auto ? 'shared' : 'pending', source: meets.has(pair(to, booth.id)) ? 'scan' : 'match', createdAt: iso(back), expiresAt: new Date(now() + 864e5).toISOString() })
-    if (auto) share(a, booth.id, a.shareFields, 'auto', back)
-    if (!back) events.push({ t: now(), type: 'request' })
+    if (auto) { share(a, booth.id, a.shareFields, 'auto', back); convs.get(pair(to, booth.id))!.status = 'open' }
     return auto
   }
 
+  function answer(me: Me, id: string, action: Api['POST /api/chats/:id/answer']['body']['action'], fields?: ContactField[], back = 0) {
+    const c = convs.get(pair(me.id, id))
+    if (!c || c.b !== me.id) throw new Error('That request is no longer here.')
+    c.status = action === 'accept' || action === 'share' ? 'open' : 'ignored'
+    c.seen[me.id] = c.msgs.length
+    if (action === 'share') share(me, id, fields?.length ? fields : me.shareFields, 'request', back)
+    if (action === 'mute') muted.add(`${me.id}>${id}`)
+    return thread(me, c)
+  }
+
+  const started = (me: Me) => [...convs.values()].filter((c) => c.a === me.id)
+  const won = (c: Conv) => shares.has(`${c.b}>${c.a}`)
   const visitor = (booth: Me, a: Me, source: Visitor['source']): Visitor => {
-    const c = card(booth, a), r = requests.find((q) => q.to === a.id && q.from === booth.id)
-    return { card: c, fit: fit(c.common), source, scannedAt: c.met?.at, request: r && { status: r.status, note: r.note, sentAt: r.createdAt } }
+    const c = card(booth, a), r = convs.get(pair(a.id, booth.id))
+    return { card: c, fit: fit(c.common), source, scannedAt: c.met?.at, request: r?.a === booth.id ? { status: r.status, note: r.msgs[0].text, sentAt: r.createdAt } : undefined }
   }
   const attendees = () => [...people.values()].filter((p) => p.kind === 'attendee')
   const words = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2)
@@ -113,25 +159,27 @@ export function createMock(now: () => number = Date.now) {
       return { card: card(me, get(params.id)), receipt: receipts.get(me.id)![0] }
     },
     'POST /api/people/share': (me, { body }) => ({ shared: body.ids.filter((id) => !shares.has(`${me.id}>${id}`)).map((id) => share(me, id)).length }),
-    'GET /api/inbox': (me) => ({ requests: requests.filter((q) => q.to === me.id).map(({ to: _to, from, ...q }) => ({ ...q, booth: card(me, get(from)) })), receipts: receipts.get(me.id) ?? [] }),
-    'POST /api/inbox/:id': (me, { params, body }) => {
-      const q = requests.find((x) => x.id === params.id && x.to === me.id)
-      if (!q) throw new Error('That request is no longer here.')
-      q.status = body.action === 'share' ? 'shared' : 'ignored'
-      if (body.action === 'share') share(me, q.from, body.fields ?? me.shareFields, 'request')
-      if (body.action === 'mute') muted.add(`${me.id}>${q.from}`)
-      const { to: _to, from, ...rest } = q
-      return { request: { ...rest, booth: card(me, get(from)) } }
+    'GET /api/inbox': (me) => {
+      const all = [...convs.values()].filter((c) => c.a === me.id || c.b === me.id).map((c) => thread(me, c)).sort((x, y) => y.last.at.localeCompare(x.last.at))
+      return { requests: all.filter((t) => t.status === 'request' && t.startedBy === 'them'), chats: all.filter((t) => t.status === 'open' || t.startedBy === 'me'), receipts: receipts.get(me.id) ?? [] }
     },
+    'GET /api/chats/:id': (me, { params }) => {
+      const c = convs.get(pair(me.id, params.id))
+      if (!c) throw new Error('No conversation here yet.')
+      c.seen[me.id] = c.msgs.length
+      return { thread: thread(me, c), messages: c.msgs.map((m) => message(me.id, m)) }
+    },
+    'POST /api/chats/:id': (me, { params, body }) => send(me, params.id, body.text, body.attachment),
+    'POST /api/chats/:id/answer': (me, { params, body }) => ({ thread: answer(me, params.id, body.action, body.fields) }),
     'GET /api/booth': (me) => {
-      const mine = requests.filter((q) => q.from === me.id), n = (s: BoothRequest['status']) => mine.filter((q) => q.status === s).length
+      const mine = started(me), n = (s: Thread['status']) => mine.filter((c) => c.status === s && !won(c)).length, yes = mine.filter(won).length
       const leads: Lead[] = [...shares].filter(([k]) => k.endsWith(`>${me.id}`)).map(([k, s]) => {
         const a = get(k.split('>')[0])
-        return { card: card(me, a), sharedAt: s.at, via: s.via, note: mine.find((q) => q.to === a.id && q.status === 'shared')?.note }
+        return { card: card(me, a), sharedAt: s.at, via: s.via, note: mine.find((c) => c.b === a.id)?.msgs[0].text }
       }).sort((a, b) => b.sharedAt.localeCompare(a.sharedAt))
       const visitors = attendees().filter((a) => meets.has(pair(a.id, me.id))).map((a) => visitor(me, a, 'scan')).sort((a, b) => b.fit - a.fit)
-      const notes = [...new Set(mine.map((q) => q.note))].map((note) => { const all = mine.filter((q) => q.note === note), won = all.filter((q) => q.status === 'shared').length; return { note, sent: all.length, shared: won, rate: won / all.length } })
-      return { leads, visitors, stats: { scans: visitors.length, requests: mine.length, pending: n('pending'), shared: n('shared'), ignored: n('ignored'), shareRate: mine.length ? n('shared') / mine.length : 0, contentDelivered: mine.filter((q) => q.attachment).length, topInterests: top(visitors.map((v) => v.card.interests ?? [])), notes } }
+      const notes = [...new Set(mine.map((c) => c.msgs[0].text))].map((note) => { const all = mine.filter((c) => c.msgs[0].text === note), shared = all.filter(won).length; return { note, sent: all.length, shared, rate: shared / all.length } })
+      return { leads, visitors, stats: { scans: visitors.length, requests: mine.length, pending: n('request'), shared: yes, ignored: n('ignored'), shareRate: mine.length ? yes / mine.length : 0, contentDelivered: mine.filter((c) => c.attachment).length, topInterests: top(visitors.map((v) => v.card.interests ?? [])), notes } }
     },
     'POST /api/booth/requests': (me, { body }) => {
       const sent = body.to.map((to) => request(me, to, body.note, body.attachment))
@@ -156,7 +204,7 @@ export function createMock(now: () => number = Date.now) {
     'GET /api/pulse': (me) => {
       const n = (t: string) => events.filter((e) => e.type === t).length, minute = Math.floor(now() / 6e4)
       const booths = [...people.values()].filter((p) => p.kind === 'sponsor').map((b) => {
-        const mine = requests.filter((q) => q.from === b.id), shared = mine.filter((q) => q.status === 'shared').length
+        const mine = started(b), shared = mine.filter(won).length
         return { id: b.id, name: b.displayName, scans: 14 + [...meets.keys()].filter((k) => k.includes(b.id)).length, requests: 9 + mine.length, shared: 4 + shared, shareRate: (4 + shared) / (9 + mine.length), mutes: [...muted].filter((k) => k.endsWith(b.id)).length }
       })
       return {
@@ -172,20 +220,25 @@ export function createMock(now: () => number = Date.now) {
     'GET /api/config': () => ({ dash0: { url: '', token: '' }, event: { name: 'Merge Forward 2026', endsAt: new Date(now() + 6 * 36e5).toISOString() } }),
   }
 
-  // A lived-in event: Amara has met eight people, four shared with her; Elastic has leads and a pitch history.
+  // A lived-in event: Amara has met eight people and has two message requests waiting (Kwame, and the Dash0 booth with its kit);
+  // Elastic has leads and a pitch history. Amara and Diego have not met: that is the demo.
   const p = (tag: number) => people.get(`p${tag}`)!
   const H = 36e5
   ;[502, 503, 505, 506, 509].forEach((t, i) => scan(p(500), [t], (i + 1) * H / 2))
   ;[504, 507, 511].forEach((t, i) => scan(p(t), [500], (i + 2) * H / 3))
-  ;[503, 505, 509, 511].forEach((t) => share(p(t), 'p500', undefined, 'manual', H / 4))
+  ;[503, 509, 511].forEach((t) => share(p(t), 'p500', undefined, 'manual', H / 4))
   share(p(500), 'p503', undefined, 'manual', H / 5)
+  send(p(500), 'p503', 'Your on-call rota idea stuck with me. Can I steal it?', undefined, H / 5)
+  send(p(503), 'p500', 'Steal away. I will send the doc after lunch.', undefined, H / 6)
+  convs.get(pair('p500', 'p503'))!.seen.p500 = 2 // Amara has read Tomasz's reply
   ;[502, 510].forEach((t) => scan(p(501), [t], H))
   ;[502, 505, 506, 509, 510].forEach((t) => scan(p(580), [t], H))
   ;[505, 509, 510].forEach((t) => request(p(580), `p${t}`, p(580).pitch!, undefined, H / 2))
   request(p(580), 'p506', 'Stop by for a sticker and a demo.', undefined, H / 2)
-  ;[505, 509].forEach((t) => { requests.find((q) => q.to === `p${t}`)!.status = 'shared'; share(p(t), 'p580', undefined, 'request', H / 3) })
-  requests.find((q) => q.to === 'p506')!.status = 'ignored'
-  request(p(581), 'p500', p(581).pitch!, undefined, 2 * H)
+  ;[505, 509].forEach((t) => answer(p(t), 'p580', 'share', undefined, H / 3))
+  answer(p(506), 'p580', 'ignore')
+  send(p(505), 'p500', 'We both run OpenTelemetry on Kubernetes. How do you sample traces?', undefined, H / 3)
+  request(p(581), 'p500', p(581).pitch!, undefined, H / 2)
   receipts.set('p500', [
     { id: 'r0b', type: 'opened', who: card(p(500), p(503)), fields: ['email', 'linkedin'], at: iso(H / 6), traceId: '9c41e07ab2d15f36' },
     { id: 'r0a', type: 'shared', who: card(p(500), p(503)), fields: ['email', 'linkedin'], at: iso(H / 5), traceId: '4be7a90c13f8d2a6' },
@@ -193,11 +246,14 @@ export function createMock(now: () => number = Date.now) {
 
   /** Deep-link states for screenshots and rehearsal: each step includes the ones before it. */
   const demo = (step: string) => {
-    const at = ['met', 'shared', 'both', 'request'].indexOf(step)
+    const at = ['met', 'asked', 'chat', 'shared', 'both', 'booth', 'lead'].indexOf(step)
     if (at >= 0) scan(p(500), [501])
-    if (at >= 1) share(p(501), 'p500')
-    if (at >= 2) share(p(500), 'p501')
-    if (at >= 3) { scan(p(580), [500]); request(p(580), 'p500', p(580).pitch!) }
+    if (at >= 1) send(p(500), 'p501', 'Your Distributed tracing meets my OpenTelemetry. Swap stories?')
+    if (at >= 2) send(p(501), 'p500', 'Yes. Find me by the coffee after this talk?')
+    if (at >= 3) share(p(501), 'p500')
+    if (at >= 4) share(p(500), 'p501')
+    if (at >= 5) { scan(p(580), [500]); request(p(580), 'p500', p(580).pitch!) }
+    if (at >= 6) answer(p(500), 'p580', 'share')
   }
 
   const call = <K extends keyof Api>(token: string | null, key: K, r: Partial<Req<K>> = {}): Api[K]['res'] => {

@@ -25,7 +25,7 @@ We asked Radar "is this well configured?" before the demo. It returned 17 findin
 | Containers allow privilege escalation | high | `allowPrivilegeEscalation: false`, drop all capabilities |
 | May run as root | medium | `runAsNonRoot: true` with the image's own user, `seccompProfile: RuntimeDefault` |
 | Root filesystem is writable | medium | `readOnlyRootFilesystem: true`, with an `emptyDir` for `/tmp` |
-| Service account token auto-mounted | medium | `automountServiceAccountToken: false` (the app never calls the Kubernetes API) |
+| Service account token auto-mounted | medium | `automountServiceAccountToken: false` on web and the expirer. The API and the consent operator now mount one on purpose, each bound to a narrow role: see [kubernetes-consent.md](kubernetes-consent.md) |
 | No CPU limit | medium | CPU limits added |
 | `dex-web` has no liveness probe | medium | liveness probe added |
 | No PodDisruptionBudget | medium | `k8s/base/pdb.yaml`: keep one copy of each service up |

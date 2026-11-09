@@ -7,8 +7,10 @@ spec:
   template:
     metadata: { labels: { app: dex-api } }
     spec:
-      # Hardening from Radar's cluster audit (docs/radar.md): no API token, no root, no privilege escalation, read-only disk.
-      automountServiceAccountToken: false
+      # Hardening from Radar's cluster audit (docs/radar.md): no root, no privilege escalation, read-only disk.
+      # The token is mounted again because the API now asks Kubernetes before an export; `confer-api` can do nothing else (consent.yaml).
+      serviceAccountName: confer-api
+      automountServiceAccountToken: true
       securityContext: { runAsNonRoot: true, runAsUser: 1000, seccompProfile: { type: RuntimeDefault } }
       topologySpreadConstraints:
         - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app: dex-api } } }
@@ -22,6 +24,7 @@ spec:
           envFrom: [{ secretRef: { name: dex-secrets } }]
           env:
             - { name: OTEL_SERVICE_NAME, value: dex-api }
+            - { name: NODE_EXTRA_CA_CERTS, value: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt }
             - { name: POD_NAME, valueFrom: { fieldRef: { fieldPath: metadata.name } } }
             - { name: POD_NAMESPACE, valueFrom: { fieldRef: { fieldPath: metadata.namespace } } }
             # Links every span/log/metric in Dash0 to the exact pod Radar shows.

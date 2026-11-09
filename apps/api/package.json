@@ -6,6 +6,7 @@
     "dev": "tsx watch --env-file=../../.env --import ./src/otel.ts src/index.ts",
     "build": "tsc",
     "start": "node --import ./dist/otel.js dist/index.js",
+    "operator": "tsx --env-file=../../.env --import ./src/otel.ts src/operator.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "demo:reset": "tsx --env-file=../../.env src/seed.ts && tsx --env-file=../../.env src/talks.ts",

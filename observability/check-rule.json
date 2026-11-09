@@ -1,0 +1,11 @@
+{
+  "name": "Confer API is burning its error budget",
+  "expression": "max({otel_metric_name=\"dash0.slo.burn_rate.fast\", slo=\"confer-api-fast\"} or {otel_metric_name=\"dash0.slo.burn_rate.slow\", slo=\"confer-api-fast\"}) > $__threshold",
+  "thresholds": { "degraded": 1, "failed": 2 },
+  "interval": "1m",
+  "for": "2m",
+  "summary": "dex-api requests are slow or failing fast enough to break the SLO",
+  "description": "The confer-api-fast SLO (95% of API requests succeed in under 2s) is spending its error budget too quickly. 1 means the budget runs out before the 28-day window ends. Start with the 'Confer: event health' dashboard: p95 by route, then Elasticsearch latency.",
+  "labels": { "service": "dex-api" },
+  "enabled": true
+}

@@ -6,6 +6,11 @@
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "lint": "biome lint",
+    "obs:apply": "node --env-file-if-exists=.env observability/apply.mjs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.6"
   }
 }

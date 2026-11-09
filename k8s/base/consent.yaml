@@ -63,7 +63,8 @@ spec:
       automountServiceAccountToken: true
       securityContext: { runAsNonRoot: true, runAsUser: 1000, seccompProfile: { type: RuntimeDefault } }
       containers:
-        # No probes: it serves no traffic, exits if it has no Kubernetes API, and a pass that fails is logged and retried.
+        # It serves no traffic, so the probes read a heartbeat file the loop touches after every pass (Radar's audit asked for
+        # probes): a loop that hangs is restarted, and a rollout counts as available only after a first pass.
         - name: operator
           image: dex-api
           command: ["node", "--import", "./dist/otel.js", "dist/operator.js"]
@@ -74,3 +75,11 @@ spec:
             # Node trusts the cluster's own CA for calls to the Kubernetes API.
             - { name: NODE_EXTRA_CA_CERTS, value: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt }
           resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { cpu: 500m, memory: 256Mi } }
+          livenessProbe: &alive
+            exec: { command: ["node", "-e", "process.exit(Date.now() - require('fs').statSync('/tmp/alive').mtimeMs < 60000 ? 0 : 1)"] }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe: *alive
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
+      volumes: [{ name: tmp, emptyDir: {} }]

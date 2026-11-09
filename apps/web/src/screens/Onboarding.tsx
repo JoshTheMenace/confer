@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react'
-import { type Api, type Approach, type AutoShare, type Persona, call, param, personas } from '../api'
+import { type Api, type Approach, type AutoShare, type Persona, call, contactFields, param, personas } from '../api'
 import { Silhouette } from '../Silhouette'
 import { Icon, approaches, resizePhoto } from '../ui'
 
@@ -10,7 +10,7 @@ const steps = ['You', 'Interests', 'Sharing']
 
 export function Onboarding({ onToken }: { onToken: (token: string) => void }) {
   const [step, setStep] = useState(Number(param('step') ?? 0))
-  const [form, setForm] = useState<Form>({ displayName: '', approach: 'open', interests: [], lookingFor: [], discoverable: true, openToBooths: true, boothsSeeName: false, autoShare: 'off', shareFields: ['email'], contact: {} })
+  const [form, setForm] = useState<Form>({ displayName: '', approach: 'open', interests: [], lookingFor: [], discoverable: true, openToBooths: true, boothsSeeName: false, autoShare: 'off', shareFields: [], contact: {} })
   const [tag, setTag] = useState('')
   const [error, setError] = useState<string>()
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }))
@@ -20,8 +20,7 @@ export function Onboarding({ onToken }: { onToken: (token: string) => void }) {
   const next = (e: FormEvent) => {
     e.preventDefault()
     if (step < 2) return setStep(step + 1)
-    const shareFields = form.shareFields.filter((f) => form.contact[f])
-    call(null, 'POST /api/me/signup', { body: { ...form, shareFields } }).then((r) => onToken(r.token), (err: Error) => setError(err.message))
+    call(null, 'POST /api/me/signup', { body: { ...form, shareFields: contactFields.filter((f) => form.contact[f]) } }).then((r) => onToken(r.token), (err: Error) => setError(err.message))
   }
 
   return (
@@ -67,8 +66,8 @@ export function Onboarding({ onToken }: { onToken: (token: string) => void }) {
       {step === 2 && (
         <>
           <h1>What Share hands over</h1>
-          <p className="dim">Nothing below leaves your phone’s account until you tap Share on a person or a booth.</p>
-          <label>Email<input type="email" autoComplete="email" value={form.contact.email ?? ''} onChange={(e) => set({ contact: { ...form.contact, email: e.target.value }, shareFields: ['email', 'linkedin', 'github'] })} /></label>
+          <p className="dim">Nobody sees anything below until you tap Share on a person or a booth.</p>
+          <label>Email<input type="email" autoComplete="email" value={form.contact.email ?? ''} onChange={(e) => set({ contact: { ...form.contact, email: e.target.value } })} /></label>
           <label>LinkedIn (optional)<input value={form.contact.linkedin ?? ''} onChange={(e) => set({ contact: { ...form.contact, linkedin: e.target.value } })} /></label>
           <label>GitHub (optional)<input value={form.contact.github ?? ''} onChange={(e) => set({ contact: { ...form.contact, github: e.target.value } })} /></label>
           <div className="row selfie">

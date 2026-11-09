@@ -195,3 +195,12 @@ export function FieldPicker({ value, onChange, legend }: { value: ContactField[]
     </fieldset>
   )
 }
+
+// Small pieces the booth and organizer screens share.
+export const pct = (n: number) => `${Math.round(n * 100)}%`
+export const Stat = ({ label, value, format }: { label: string; value: number; format?: (n: number) => string }) => (
+  <div className="stat"><b><Count value={value} format={format} /></b><span>{label}</span></div>
+)
+export const Bars = ({ terms }: { terms: { term: string; count: number }[] }) => (
+  <ul className="bars">{terms.map((t) => <li key={t.term}><span>{t.term}</span><i style={{ '--w': t.count / Math.max(...terms.map((x) => x.count)) } as CSSProperties} /><b>{t.count}</b></li>)}</ul>
+)

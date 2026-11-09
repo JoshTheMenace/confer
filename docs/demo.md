@@ -14,8 +14,8 @@ Everything in this repo was built to make these five minutes work. Present from 
 
 | Time | Say | Do |
 |---|---|---|
-| 0:00 | "Meeting someone at a conference shouldn't subscribe you to them. Today a badge scan puts your email on a lead list before you've finished saying hello." | Hold up the paper badge. |
-| 0:20 | "This is Confer. The front of your badge says hi. Only you say yes." | Stage mode is on screen. |
+| 0:00 | "This is the state of the art in conference privacy." *(hold up a badge with its code blacked out)* "A Sharpie. People deface their own badges so booths can't scan them, because one scan puts your email on a lead list and the sales emails start before you've flown home. One conference even told attendees how: color over the code with a black Sharpie." | Hold up the blacked-out badge. Let it land. |
+| 0:20 | "The scan isn't the problem. What happens after it is. So what if a scan gave away nothing?" *(swap to the clean badge)* "This is Confer. The front of your badge says hi. Only you say yes." | Stage mode is on screen. |
 | 0:30 | "Amara scans Diego's badge from across the table. Diego doesn't touch his phone." | Left phone: Scan. Hold the badge to the webcam (or type its number). |
 | 0:40 | "She gets a first name, a silhouette, and what they have in common. Not his job title, not his email, not even his full list of interests. And look at this one: she wrote OpenTelemetry, he wrote distributed tracing. Elasticsearch embeddings know that's the same conversation." | Point at the *related* pair. |
 | 1:00 | "She wants to keep talking, so she says why. Like a LinkedIn invite, except Diego sees the reason and what they have in common before he gives up anything." | Left phone: **Connect**, pick the suggested opener, send. Right phone: the request arrives in the Inbox. |
@@ -39,6 +39,16 @@ Everything in this repo was built to make these five minutes work. Present from 
 - **Camera will not read the badge:** type the badge number. It is the accessible path anyway; say that.
 - **A save is slow:** "That is Elastic Serverless on conference Wi-Fi; the write floor is half a second and it is on our SLO."
 - **Everything is down:** the `?mock` link above.
+
+## The problem, with sources
+
+Open with the problem, not the product. Things we can point to:
+
+- **Organizers telling people to deface their badges.** WordCamp US 2019's own badge guide said attendees who did not want to be scanned could "use a black sharpie to color over the QR code" or cover it with any sticker ([WCUS Badges and QR Codes](https://us.wordcamp.org/2019/category/tickets/), 2019-10-29).
+- **Scanning without a conversation.** Attendees describe booths scanning badges as people walk past, or offering swag first and scanning before saying who they are ([Zuant: "Mindless scanning badges and random follow up"](https://www.zuant.com/2014/10/mindless-scanning-badges-and-random-follow-up/)).
+- **The emails afterwards.** An Esri DevSummit attendee reported a stream of vendor email after each year's event, from senders who would not say where they got the address ([Esri Community thread](https://community.esri.com/thread/230513-spam-emails-after-devsummit)).
+
+Only say what these sources say. If you quote a person's post in the video, show the real post and its link.
 
 ## Questions you will get
 

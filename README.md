@@ -2,6 +2,8 @@
 
 **The front of your badge says hi. Only you say yes.**
 
+People take a Sharpie to their own conference badges so booths can't scan them. One conference's badge guide even [told attendees how](https://us.wordcamp.org/2019/category/tickets/). A scan today puts your email on a lead list, and the sales emails start before you've flown home.
+
 Meeting someone at a conference shouldn't subscribe you to them. With Confer, a badge scan shows a first name, a silhouette and what you have in common. Your contact card and photo move only when you tap **Share**, and **Unshare** takes them back.
 
 Built in one day at the Cloud Native Hackathon (WeMakeDevs, Salt Lake City, 2026-11-09).

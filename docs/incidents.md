@@ -39,3 +39,4 @@ Real problems we hit while building, and how we found them.
 | GET /api/me right after signup | could miss a brand-new profile | 0.63s, always found |
 
 A plain Serverless write still costs about 0.5s from here, a floor set by network and storage, not by our code.
+- **Trade-off (raised by Gitar in review):** lists that are *searches* (the Dex, sponsor counts, the inbox list) now see a new write after the next refresh, within ~5s. The Dex merges the cards you just caught so it never looks empty right after a scan; sponsor counts and new inbox requests lagging a few seconds is acceptable.

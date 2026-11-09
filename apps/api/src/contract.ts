@@ -66,18 +66,6 @@ export type Card = {
   muted?: boolean // viewer muted this booth
 }
 
-export type BoothRequest = {
-  id: string
-  booth: Card
-  note: string
-  attachment?: Attachment // delivered whether or not you share
-  why: Common[] // what you have in common with the booth's topics
-  status: 'pending' | 'shared' | 'ignored'
-  source: 'scan' | 'match' // they scanned you, or search matched you (only if openToBooths)
-  createdAt: string
-  expiresAt: string
-}
-
 /**
  * A conversation between two profiles, and the center of the app. It starts as a MESSAGE REQUEST:
  * the first message says why someone wants to connect, and the recipient decides whether to look, answer, ignore or mute.
@@ -102,11 +90,11 @@ export type Message = { id: string; from: 'me' | 'them'; text: string; at: strin
 export type Receipt = { id: string; type: 'shared' | 'opened' | 'unshared'; who: Card | null; fields: ContactField[]; at: string; traceId?: string }
 
 /** A booth's view of one attendee: anonymous until they share. `fit` is 0 to 100. */
-export type Visitor = { card: Card; fit: number; source: 'scan' | 'match'; scannedAt?: string; request?: { status: BoothRequest['status']; note: string; sentAt: string } }
+export type Visitor = { card: Card; fit: number; source: 'scan' | 'match'; scannedAt?: string; request?: { status: Thread['status']; note: string; sentAt: string } }
 export type Lead = { card: Card; sharedAt: string; via: 'manual' | 'auto' | 'request'; note?: string } // note: the request that won them over
 export type BoothStats = {
-  scans: number; requests: number; pending: number; shared: number; ignored: number
-  shareRate: number // shared / requests, 0 to 1
+  scans: number; requests: number; pending: number; shared: number; ignored: number // requests = conversations this booth started
+  shareRate: number // people who shared their card after a request / requests, 0 to 1
   contentDelivered: number // people who received the attachment
   topInterests: Term[] // anonymous totals
   notes: { note: string; sent: number; shared: number; rate: number }[] // which pitch earns shares
@@ -146,12 +134,10 @@ export type Api = {
   'DELETE /api/people/:id/share': { res: { card: Card; receipt: Receipt } }
   'POST /api/people/share': { body: { ids: string[] }; res: { shared: number } } // end-of-event bulk share
 
-  'GET /api/inbox': { res: { requests: BoothRequest[]; receipts: Receipt[] } }
-  'POST /api/inbox/:id': { body: { action: 'share' | 'ignore' | 'mute'; fields?: ContactField[] }; res: { request: BoothRequest } } // :id is a request id
+  // The Inbox, the heart of the app. requests: message requests waiting for my answer. chats: open conversations and requests I sent, newest first.
+  'GET /api/inbox': { res: { requests: Thread[]; chats: Thread[]; receipts: Receipt[] } }
 
-  // Connection requests and chat (replaces the booth-only inbox above once the API moves over).
-  // requests: message requests waiting for my answer. chats: open conversations and requests I sent, newest first.
-  'GET /api/chats': { res: { requests: Thread[]; chats: Thread[] } }
+  // :id is the other person's or booth's profile id.
   'GET /api/chats/:id': { res: { thread: Thread; messages: Message[] } } // reading marks it read
   // No conversation yet: this is a message request and `text` is the reason. Replying to a request accepts it.
   'POST /api/chats/:id': { body: { text: string; attachment?: Attachment }; res: { thread: Thread; message: Message } }
@@ -159,7 +145,7 @@ export type Api = {
   'POST /api/chats/:id/answer': { body: { action: 'accept' | 'share' | 'ignore' | 'mute'; fields?: ContactField[] }; res: { thread: Thread } }
 
   'GET /api/booth': { res: { leads: Lead[]; visitors: Visitor[]; stats: BoothStats } }
-  'POST /api/booth/requests': { body: { to: string[]; note: string; attachment?: Attachment }; res: { sent: number; autoShared: number } }
+  'POST /api/booth/requests': { body: { to: string[]; note: string; attachment?: Attachment }; res: { sent: number; autoShared: number } } // the same first message to several people
   'GET /api/booth/prospects': { res: { prospects: Visitor[] } }
 
   'GET /api/discover': { query: { q?: string }; res: Discover }

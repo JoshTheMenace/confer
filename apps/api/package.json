@@ -7,7 +7,8 @@
     "build": "tsc",
     "start": "node --import @opentelemetry/auto-instrumentations-node/register dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "seed": "tsx --env-file=../../.env src/seed.ts"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^9.5.1",

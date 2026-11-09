@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { es } from './es.js'
+import { matches } from './routes/matches.js'
 
 export const app = new Hono()
   .get('/healthz', (c) => c.text('ok'))
@@ -13,5 +14,6 @@ export const app = new Hono()
       openai: !!process.env.OPENAI_API_KEY,
     })
   })
+  .route('/api/matches', matches)
 
 export type AppType = typeof app

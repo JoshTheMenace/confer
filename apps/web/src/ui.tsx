@@ -62,10 +62,11 @@ export const ApproachBadge = ({ approach }: { approach: Approach }) => (
   <span className={`approach ${approach}`}><svg viewBox="0 0 16 16" aria-hidden="true" dangerouslySetInnerHTML={{ __html: shapes[approaches[approach].shape] }} />{approaches[approach].label}</span>
 )
 
-export function Screen({ title, tone, lede, children }: { title: string; tone: string; lede?: ReactNode; children: ReactNode }) {
+export function Screen({ title, tone, lede, top, children }: { title: string; tone: string; lede?: ReactNode; top?: ReactNode; children: ReactNode }) {
   return (
     <>
       <header className={`masthead ${tone}`}>
+        {top}
         <h1 tabIndex={-1}>{title}</h1>
         {lede && <p>{lede}</p>}
       </header>

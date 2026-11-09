@@ -69,7 +69,7 @@ export function Person({ id }: { id: string }) {
   useShareNews(data?.people)
   const p = data?.people.find((x) => x.id === id)
   const back = <a className="back" href="#/people" onClick={(e) => { e.preventDefault(); go('people') }}>← People</a>
-  if (!p) return <Screen title={data ? 'Not met yet' : '…'} tone="yellow">{back}{data && <p>Scan their badge first.</p>}</Screen>
+  if (!p) return <Screen title={data ? 'Not met yet' : '…'} tone="yellow" top={back}>{data && <p>Scan their badge first.</p>}</Screen>
 
   const share = async () => {
     await call(session, 'POST /api/people/:id/share', { params: { id }, body: { fields } })
@@ -85,13 +85,18 @@ export function Person({ id }: { id: string }) {
   }
   const freeze = param('reveal')
   return (
-    <Screen title={p.name ?? 'Attendee'} tone={p.theyShared ? 'paper' : 'yellow'} lede={<>{p.pronouns && <>{p.pronouns} · </>}{p.met && `${metBy[p.met.by]} ${ago(p.met.at)}`}</>}>
-      {back}
+    <Screen title={p.name ?? 'Attendee'} tone={p.theyShared ? 'paper' : 'yellow'} top={back} lede={<>{p.pronouns && <>{p.pronouns} · </>}{p.met && `${metBy[p.met.by]} ${ago(p.met.at)}`}</>}>
       <div className="hero"><Portrait card={p} freeze={freeze === null ? undefined : Number(freeze)} /></div>
       <p className="status">{p.theyShared ? `${p.name} shared their card with you.` : `A silhouette until ${p.name} chooses to share.`}</p>
-      <p><ApproachBadge approach={p.approach} />{p.commPref && <span className="muted"> Prefers: {p.commPref}</span>}</p>
-      <CommonList common={p.common} theirs={p.name ?? 'Them'} />
-      {p.theyShared && <ContactCard contact={p.theyShared.contact} role={p.theyShared.role} />}
+      {receipt && (
+        <div className="receipt" role="status">
+          <div>
+            <b>Deletion receipt</b>
+            <p>{receipt.fields.map((f) => fieldNames[f]).join(', ')} and photo removed from {p.name}'s list.</p>
+            <p><small>{new Date(receipt.at).toLocaleTimeString()} · trace <code>{receipt.traceId?.slice(0, 8)}</code></small></p>
+          </div>
+        </div>
+      )}
       <section className="sharebox">
         {p.iShared ? <>
           <h2>You shared {p.iShared.fields.map((f) => fieldNames[f]).join(' and ')}</h2>
@@ -103,15 +108,9 @@ export function Person({ id }: { id: string }) {
           <button className="big" disabled={!fields.length} onClick={share}>Share my card</button>
         </>}
       </section>
-      {receipt && (
-        <div className="receipt" role="status">
-          <div>
-            <b>Deletion receipt</b>
-            <p>{receipt.fields.map((f) => fieldNames[f]).join(', ')} and photo removed from {p.name}'s list.</p>
-            <p><small>{new Date(receipt.at).toLocaleTimeString()} · trace <code>{receipt.traceId?.slice(0, 8)}</code></small></p>
-          </div>
-        </div>
-      )}
+      <p><ApproachBadge approach={p.approach} />{p.commPref && <span className="muted"> Prefers: {p.commPref}</span>}</p>
+      <CommonList common={p.common} theirs={p.name ?? 'Them'} />
+      {p.theyShared && <ContactCard contact={p.theyShared.contact} role={p.theyShared.role} />}
     </Screen>
   )
 }

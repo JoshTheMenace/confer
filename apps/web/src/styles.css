@@ -63,7 +63,9 @@ input, select, textarea { min-height: 48px; width: 100%; padding: 10px 12px; bor
 input[type='checkbox'], input[type='radio'] { width: 24px; min-height: 24px; height: 24px; flex: none; accent-color: var(--cobalt) }
 fieldset { border: 3px solid var(--ink); padding: 10px 12px; display: grid; gap: 4px }
 legend { font-weight: 900; padding: 0 6px }
-.checks label, .radios label, label.check { display: flex; gap: 12px; align-items: center; min-height: 44px; font-weight: 600 }
+.radios label, label.check, .checks label { display: flex; gap: 12px; align-items: center; min-height: 44px; font-weight: 600 }
+.checks { display: flex; flex-wrap: wrap; gap: 0 12px }
+.checks label { gap: 8px }
 .picks { display: flex; flex-wrap: wrap; gap: 8px }
 .picks button { padding: 0; border: 0; background: none; text-transform: none; min-height: 44px }
 .picks [aria-pressed='true'] .tag { background: var(--ink); color: var(--paper) }
@@ -97,7 +99,7 @@ legend { font-weight: 900; padding: 0 6px }
 .ring { position: absolute; inset: 30%; border: 8px solid #fff; border-radius: 50%; opacity: 0 }
 .tiles u { position: absolute; left: 44%; top: 44%; width: 12%; height: 12%; background: var(--yellow); opacity: 0; --d: .3s }
 .tiles u:nth-of-type(odd) { background: var(--red); border-radius: 50% }
-.stamp { display: none; position: absolute; left: -3%; bottom: 7%; padding: 8px 16px 8px 22px; background: var(--yellow); color: #111; border: 3px solid #111; font: var(--display); font-size: 20px; text-transform: uppercase; transform: rotate(-5deg); --d: .8s }
+.stamp { display: none; position: absolute; left: -3%; bottom: 7%; padding: 8px 16px 8px 22px; background: var(--yellow); color: #111; border: 3px solid #111; font: var(--display); font-size: 20px; text-transform: uppercase; white-space: nowrap; transform: rotate(-5deg); --d: .8s }
 .hero .stamp { display: block }
 .hero { max-width: 300px; width: 100%; margin: 0 auto }
 .hero .portrait { box-shadow: 8px 8px 0 var(--ink) }
@@ -131,7 +133,7 @@ legend { font-weight: 900; padding: 0 6px }
 .album .filled .portrait { border-color: #fff; outline: 3px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); transform: rotate(-2.5deg) }
 .album .filled:nth-child(even) .portrait { transform: rotate(2deg) }
 .endcap { display: grid; gap: 10px; border-top: 3px solid var(--ink); padding-top: 12px }
-.back { font-weight: 900; text-transform: uppercase; min-height: 44px; display: inline-flex; align-items: center; justify-self: start }
+.back { font-weight: 900; text-transform: uppercase; min-height: 44px; display: inline-flex; align-items: center; margin-top: -14px }
 .contact { border: 3px solid var(--ink); padding: 12px; display: grid; gap: 8px; background: #fff; color: #111 }
 .contact dt { font: 900 11px system-ui; text-transform: uppercase; letter-spacing: .08em }
 .contact dd { font-weight: 700; overflow-wrap: anywhere }
@@ -223,6 +225,8 @@ thead th { font: 900 11px system-ui; text-transform: uppercase; letter-spacing: 
 /* Phones on the dark stage stay light so they read from the back of the room. */
 :root:not([data-theme='dark']) .frame { --paper: #f6f1e7; --ink: #111; --muted: #4f4a43; --focus: #2b4bff; color-scheme: light }
 .frame h1 { font-size: 52px }
+.frame .hero { max-width: 230px }
+.frame .stamp { font-size: 15px }
 .stage > footer { grid-column: 1 / -1; margin: 0 -28px; padding: 10px 28px; display: flex; gap: 40px; align-items: center; background: var(--red); color: #111 }
 .stage footer p { font: var(--display); font-size: 46px; letter-spacing: -.04em; display: flex; align-items: baseline; gap: 8px; overflow: hidden }
 .stage footer small { font: 900 12px system-ui; letter-spacing: .08em; text-transform: uppercase; color: #111 }

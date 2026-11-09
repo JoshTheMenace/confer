@@ -32,6 +32,13 @@ const v2 = {
   shares: { from: kw, to: kw, fields: kw, via: kw /* manual | auto | request */, note: text, at: date }, // _id = from_to; deleting it is Unshare
   requests: { booth: kw, attendee: kw, note: { ...text, fields: { raw: kw } }, attachment: { properties: { url: stored, label: text } }, why: { properties: { kind: kw, mine: kw, theirs: kw } }, status: kw, source: kw, createdAt: date, expiresAt: date }, // _id = booth_attendee
   mutes: { attendee: kw, booth: kw, at: date }, // _id = attendee_booth
+  // One doc per pair (_id = the two profile ids, sorted, joined by '_'). Messages live inside it, so a chat is one real-time get.
+  threads: {
+    a: kw, b: kw, startedBy: kw, status: kw /* request | open | ignored */, source: kw, createdAt: date, expiresAt: date, lastAt: date, readA: date, readB: date,
+    why: { properties: { kind: kw, mine: kw, theirs: kw } }, attachment: { properties: { url: stored, label: text } },
+    firstText: { type: 'keyword', ignore_above: 512 }, // exact first message: lets a booth compare which pitch earns shares
+    messages: { type: 'object', enabled: false }, // [{ id, from, text, at }]: stored, never indexed or searchable
+  },
   receipts: { owner: kw, who: kw, type: kw /* shared | opened | unshared */, fields: kw, at: date, traceId: kw },
   talks: { title: { ...text, copy_to: 'semantic' }, speaker: text, abstract: { ...text, copy_to: 'semantic' }, track: kw, room: kw, startsAt: date, endsAt: date, topics: { ...kw, copy_to: 'semantic' }, semantic: { type: 'semantic_text' } },
 } as const

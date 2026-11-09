@@ -30,3 +30,12 @@ test('unknown or missing tokens are refused', async () => {
   expect((await call('nope')).status).toBe(401)
   expect((await call()).status).toBe(401)
 })
+
+test('with AUTH_CACHE_SECONDS set, a known token is remembered: the second request does not ask Elasticsearch again', async () => {
+  vi.stubEnv('AUTH_CACHE_SECONDS', '60')
+  vi.mocked(es.get).mockResolvedValue({ _source: { profile: 'p3', kind: 'attendee', tagId: 7 } } as any)
+  await call('again')
+  expect(await (await call('again')).json()).toEqual({ id: 'p3', kind: 'attendee', tagId: 7 })
+  expect(es.get).toHaveBeenCalledTimes(1)
+  vi.unstubAllEnvs()
+})

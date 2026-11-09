@@ -21,7 +21,8 @@ export function ChatScreen({ id }: { id: string }) {
     write.run(() => call(session, 'POST /api/chats/:id', { params: { id }, body: { text: text.trim() } }).then(() => { setText(''); say('Sent.') }))
   }
   const answer = (action: 'ignore' | 'mute', said: string) => write.run(() => call(session, 'POST /api/chats/:id/answer', { params: { id }, body: { action } }).then(() => { say(said); go('inbox') }))
-  const share = () => { setReceipt(undefined); card.run(() => call(session, 'POST /api/people/:id/share', { params: { id }, body: {} }).then(() => say(`Shared your card with ${name}.`))) }
+  // Sharing from an unanswered request goes through its answer, which works even for someone you never scanned.
+  const share = () => { setReceipt(undefined); card.run(() => (asked ? call(session, 'POST /api/chats/:id/answer', { params: { id }, body: { action: 'share' } }) : call(session, 'POST /api/people/:id/share', { params: { id }, body: {} })).then(() => say(`Shared your card with ${name}.`))) }
   const unshare = () => card.run(() => call(session, 'DELETE /api/people/:id/share', { params: { id } }).then((r) => { setReceipt(r.receipt); say(`Unshared. ${name}'s copy in Confer is deleted.`) }))
   return (
     <>

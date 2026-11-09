@@ -1,0 +1,17 @@
+# Silence means no: unanswered sponsor requests expire on a schedule.
+apiVersion: batch/v1
+kind: CronJob
+metadata: { name: dex-consent-expirer }
+spec:
+  schedule: "*/15 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: expirer
+              image: dex-api
+              command: ["node", "--import", "@opentelemetry/auto-instrumentations-node/register", "dist/expire.js"]
+              envFrom: [{ secretRef: { name: dex-secrets } }]
+              env: [{ name: OTEL_SERVICE_NAME, value: dex-consent-expirer }]

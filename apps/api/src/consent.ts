@@ -77,7 +77,7 @@ export async function openVault(attendee: string, viewer: string, fields: Contac
   // Receipt = what was actually seen (only filled-in fields), one per viewer and field set, stamped with the latest read.
   const seen = fields.filter((f) => contact[f])
   if (viewer !== attendee && seen.length)
-    await es.index({ index: 'receipts', id: `${attendee}_${viewer}_${seen.join(',')}`, document: { attendee, viewer, fields: seen, at: new Date().toISOString() } })
+    await es.index({ index: 'receipts', id: `${attendee}_${viewer}_${seen.join(',')}`, document: { attendee, viewer, fields: seen, at: new Date().toISOString() }, refresh: 'wait_for' })
   return contact
 }
 

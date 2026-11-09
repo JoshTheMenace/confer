@@ -30,7 +30,7 @@ export const consent = new Hono<{ Variables: { me: Me } }>()
     const req = await es.get<ConsentRequest>({ index: 'consent_requests', id: c.req.param('id') }, { ignore: [404] })
     if (req._source?.attendee !== c.var.me.id) return c.json({ error: 'not found' }, 404)
     const status = decisions[decision]
-    await es.update({ index: 'consent_requests', id: req._id, doc: { status, ...(status === 'granted' && { fields: fields ?? contactFields }) } })
+    await es.update({ index: 'consent_requests', id: req._id, doc: { status, ...(status === 'granted' && { fields: fields ?? contactFields }) }, refresh: 'wait_for' })
     consentDecisions.add(1, { outcome: status })
     return c.json({ id: req._id, status })
   })

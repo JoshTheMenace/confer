@@ -18,7 +18,8 @@ function pulseSearches(since: number, organizer: boolean) {
   const byBooth = (field: string, aggs = {}) => (organizer ? { byBooth: { terms: { field, size: 100 }, aggs } } : {})
   const shared = { shared: { filter: { term: { status: 'shared' } } } }
   return [
-    { index: ix.profiles }, { size: 0, aggs: { kinds: { terms: { field: 'kind' } }, attendees: { filter: { term: { kind: 'attendee' } }, aggs: { top: { terms: { field: 'interests', size: 8 } } } } } },
+    // Topic counts are for organizers only: an attendee could diff them between two polls to learn a newcomer's tags.
+    { index: ix.profiles }, { size: 0, aggs: { kinds: { terms: { field: 'kind' } }, ...(organizer && { attendees: { filter: { term: { kind: 'attendee' } }, aggs: { top: { terms: { field: 'interests', size: 8 } } } } }) } },
     { index: ix.meetings }, { ...count, aggs: { ...perMin, booths: { filter: { term: { kind: 'booth' } }, aggs: byBooth('scanner') } } },
     { index: ix.shares }, { ...count, aggs: perMin },
     { index: ix.requests }, { ...count, aggs: { ...shared, ...byBooth('booth', shared) } },

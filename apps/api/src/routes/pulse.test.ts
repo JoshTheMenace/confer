@@ -8,15 +8,15 @@ type Row = [key: string | number, count: number, shared?: number]
 const agg = (...rows: Row[]) => ({ buckets: rows.map(([key, doc_count, shared]) => ({ key, doc_count, shared: { doc_count: shared ?? 0 } })) })
 const hits = (value: number) => ({ hits: { total: { value }, hits: [] } })
 const thisMinute = () => Math.floor(Date.now() / 60_000) * 60_000
-const responses = () => [
-  { aggregations: { kinds: agg(['attendee', 40], ['sponsor', 2]), attendees: { top: agg(['Tracing', 9]) } } },
+const responses = (organizer: boolean) => [
+  { aggregations: { kinds: agg(['attendee', 40], ['sponsor', 2]), ...(organizer && { attendees: { top: agg(['Tracing', 9]) } }) } },
   { ...hits(12), aggregations: { recent: { perMin: agg([thisMinute(), 3]) }, booths: { byBooth: agg(['b1', 5]) } } },
   { ...hits(6), aggregations: { recent: { perMin: agg([thisMinute(), 1]) } } },
   { ...hits(8), aggregations: { shared: { doc_count: 2 }, byBooth: agg(['b1', 4, 1]) } },
   hits(1),
   { aggregations: { byBooth: agg(['b1', 1]) } },
   { hits: { hits: [{ _id: 'b1', _source: { displayName: 'Dash0' } }, { _id: 'b2', _source: { displayName: 'Elastic' } }] } },
-]
+].slice(0, organizer ? 7 : 5)
 // Dash0 answers each PromQL query with one sample; which number depends on what was asked.
 const dash0 = async (url: string) => {
   const value = url.includes('success_ratio') ? 0.97 : url.includes('slo.target') ? 0.95 : url.includes('ERROR') ? 0.01 : url.includes('duration') ? 420 : 30
@@ -24,7 +24,7 @@ const dash0 = async (url: string) => {
 }
 const get = async (kind: string) => {
   vi.mocked(es.get).mockResolvedValue({ _source: { profile: 'me', kind, tagId: 1 } } as any)
-  vi.mocked(es.msearch).mockResolvedValue({ responses: responses().slice(0, kind === 'organizer' ? 7 : 5) } as any)
+  vi.mocked(es.msearch).mockResolvedValue({ responses: responses(kind === 'organizer') } as any)
   return pulse.request('/', { headers: { authorization: 'Bearer t' } })
 }
 
@@ -48,6 +48,7 @@ test('an attendee gets totals, a 30-minute series and live health, from one Elas
   expect(es.msearch).toHaveBeenCalledTimes(1)
   const searches = vi.mocked(es.msearch).mock.calls[0][0]!.searches as { index?: string }[]
   expect(searches.filter((_, i) => i % 2 === 0).map((s) => s.index)).toEqual(['test_profiles', 'test_meetings', 'test_shares', 'test_requests', 'test_receipts'])
+  expect(JSON.stringify(searches)).not.toContain('interests') // other people's topics are not even asked for
 })
 
 test('booth numbers and interest aggregates are for organizers only', async () => {

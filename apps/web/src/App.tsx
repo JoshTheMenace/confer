@@ -47,7 +47,8 @@ export function App({ slot = 'solo', persona, start, inMemory }: { slot?: string
 
   // Requests, messages and shares are announced from here, so they are heard and seen on whatever screen you are on.
   const social = !!me && me.kind !== 'organizer'
-  const inbox = usePoll(async () => (social ? call(session, 'GET /api/inbox') : undefined), [session, social])
+  // Lists default to empty, so an API that leaves one out cannot blank the app.
+  const inbox = usePoll(async () => (social ? call(session, 'GET /api/inbox').then((r) => ({ requests: r.requests ?? [], chats: r.chats ?? [], receipts: r.receipts ?? [] })) : undefined), [session, social])
   const people = usePoll(async () => (social ? call(session, 'GET /api/people') : undefined), [session, social])
   const waiting = (inbox.data?.requests.length ?? 0) + (inbox.data?.chats.filter((t) => t.unread).length ?? 0)
   useEffect(() => {

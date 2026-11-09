@@ -1,6 +1,6 @@
 import { type CSSProperties, type FormEvent, useEffect, useState } from 'react'
 import type { Card } from '../../../api/src/contract'
-import { call, flag } from '../api'
+import { call, flag, isMock } from '../api'
 import { Scanner } from '../scan'
 import { ApproachChip, Badge, CommonList, nameOf, Portrait, Problem, useAct, useApp, usePoll, who } from '../ui'
 import { Connect } from './Connect'
@@ -97,7 +97,7 @@ export function ScanScreen() {
         <h2>Demo badges</h2>
         <div className="row">
           {demoBadges.filter(([, tag]) => tag !== me.tagId).map(([name, tag]) => <button type="button" key={tag} className="btn" disabled={act.busy} onClick={() => onCatch([tag], 'manual')}>Badge {tag} ({name})</button>)}
-          {!booth && <button type="button" className="btn" disabled={act.busy} onClick={() => onCatch([504, 508, 510], 'manual')}>A group of 3</button>}
+          {isMock && !booth && <button type="button" className="btn" disabled={act.busy} onClick={() => onCatch([504, 508, 510], 'manual')}>A group of 3</button>}
         </div>
       </section>
     </>

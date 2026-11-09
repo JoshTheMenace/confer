@@ -6,6 +6,7 @@
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "obs:apply": "node --env-file-if-exists=.env observability/apply.mjs"
   }
 }

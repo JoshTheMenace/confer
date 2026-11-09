@@ -34,6 +34,10 @@ kubectl -n dex create secret generic dex-secrets --from-env-file=.env
 kubectl apply -k k8s/base    # or k8s/local for a kind cluster with locally built images
 ```
 
+## Observability
+
+`pnpm obs:apply` pushes the dashboard, SLO and check rule in `observability/` to Dash0. What is instrumented, and how the app reads its own health back: [docs/observability.md](docs/observability.md).
+
 ## AI disclosure
 
 Built with Claude Code (Anthropic) as a pair programmer. All code was reviewed by the team, and every change landed through a PR reviewed by Gitar.

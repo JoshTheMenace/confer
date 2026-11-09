@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Api, Thread } from '../../../api/src/contract'
 import { call } from '../api'
-import { AttachmentCard, listFields, nameOf, Portrait, Problem, time, useAct, useApp, Why, who } from '../ui'
+import { AttachmentCard, listFields, Loading, nameOf, Portrait, Problem, time, useAct, useApp, Why, who } from '../ui'
 
 type Action = Api['POST /api/chats/:id/answer']['body']['action']
 const receiptWords = { shared: ['↗', 'You shared with'], opened: ['👁', 'Opened by'], exported: ['⬇', 'Exported by'], unshared: ['✂', 'You unshared from'] } as const
@@ -42,11 +42,12 @@ export function InboxScreen() {
   return (
     <>
       <h1 tabIndex={-1}>Inbox</h1>
-      <p className="progress" aria-live="polite">{n ? <><b>{n}</b> {n === 1 ? 'is' : 'are'} asking. You decide.</> : 'Nobody is waiting on you.'}</p>
+      <p className="progress" aria-live="polite">{n ? <><b>{n}</b> {n === 1 ? 'is' : 'are'} asking. You decide.</> : data ? 'Nobody is waiting on you.' : ''}</p>
       <fieldset className="row filters"><legend className="sr">Inbox sections</legend>
         {tabs.map((t) => <button type="button" key={t} className="chip pick" aria-pressed={tab === t} onClick={() => setPicked(t)}>{t}{t === 'Requests' && ` (${n})`}</button>)}
       </fieldset>
       <Problem error={error} />
+      <Loading of={{ data, error }} />
       {tab === 'Requests' && (
         <ul className="requests">
           {data?.requests.map((t) => <RequestCard key={t.id} t={t} />)}

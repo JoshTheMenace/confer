@@ -1,8 +1,8 @@
-import type { CSSProperties } from 'react'
+import { type CSSProperties, createContext, useContext } from 'react'
 import type { Pulse } from '../../../api/src/contract'
 import { call, isMock, type Session } from '../api'
 import { httpsUrl } from '../links'
-import { Bars, pct, Problem, Stat, time, useApp, usePoll } from '../ui'
+import { Bars, Loading, pct, Problem, Stat, time, useApp, usePoll } from '../ui'
 
 export function Chart({ series }: { series: Pulse['series'] }) {
   const max = Math.max(1, ...series.map((p) => p.scans))
@@ -16,7 +16,9 @@ export function Chart({ series }: { series: Pulse['series'] }) {
   )
 }
 
-export const usePulse = (session: Session) => usePoll(() => call(session, 'GET /api/pulse'), [session.token])
+/** Every 10 seconds. `off` is for a phone on Stage, which reads the Stage's own poll instead of starting a second timer. */
+export const usePulse = (session: Session, off = false) => usePoll(async () => (off ? undefined : call(session, 'GET /api/pulse')), [session.token, off], off ? 0 : 10000)
+export const StagePulse = createContext<ReturnType<typeof usePulse> | undefined>(undefined)
 
 export function PulseTotals({ totals }: { totals: Pulse['totals'] }) {
   return <div className="stats"><Stat label="meetings" value={totals.meetings} /><Stat label="shares" value={totals.shares} /><Stat label="unshares" value={totals.unshares} /><Stat label="requests" value={totals.requests} /><Stat label="share rate" value={totals.shareRate} format={pct} /></div>
@@ -24,12 +26,13 @@ export function PulseTotals({ totals }: { totals: Pulse['totals'] }) {
 
 export function PulseScreen() {
   const { session, signOut } = useApp()
-  const { data, error } = usePulse(session)
+  const shared = useContext(StagePulse), own = usePulse(session, !!shared), { data, error } = shared ?? own
   const h = data?.health
   return (
     <>
       <h1 tabIndex={-1}>Event Pulse</h1>
       <Problem error={error} />
+      <Loading of={{ data, error }} />
       {data && (
         <>
           <p className="muted">{data.totals.attendees} attendees · {data.totals.booths} booths · updated {time(data.at)}</p>

@@ -4,7 +4,7 @@ import { call, isMock, personas, type Session } from '../api'
 import { BadgeSheet, TagSvg } from '../scan'
 import { Scenery } from '../Scenery'
 import { Silhouette } from '../Silhouette'
-import { approachLabel, FieldPicker, Problem, useApp } from '../ui'
+import { approachLabel, FieldPicker, Problem, useAct, useApp } from '../ui'
 
 export type Draft = Api['POST /api/me/signup']['body']
 type Step = { draft: Draft; set: (patch: Partial<Draft>) => void }
@@ -147,11 +147,12 @@ export function MeScreen() {
   const { session, me, setMe, say, signOut, go } = useApp()
   const { id: _id, tagId: _tag, kind: _kind, starred: _starred, hasPhoto: _has, ...profile } = me // the API takes the profile, not the ids
   const [draft, setDraft] = useState<Draft>(profile)
-  const [problem, setProblem] = useState<string>()
-  const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }))
+  const [saved, setSaved] = useState(false)
+  const act = useAct()
+  const set = (patch: Partial<Draft>) => { setSaved(false); setDraft((d) => ({ ...d, ...patch })) }
   const save = (e: FormEvent) => {
     e.preventDefault()
-    call(session, 'PATCH /api/me', { body: draft }).then((r) => { setMe(r.me); say('Saved.') }, (err: Error) => setProblem(err.message))
+    act.run(() => call(session, 'PATCH /api/me', { body: draft }).then((r) => { setMe(r.me); setSaved(true); say('Saved.') }))
   }
   return (
     <>
@@ -166,8 +167,8 @@ export function MeScreen() {
       </div>
       <form onSubmit={save} className="paper settings">
         {steps.map(([title, Fields]) => <details key={title}><summary>{title}</summary><Fields draft={draft} set={set} /></details>)}
-        <Problem error={problem} />
-        <div className="row end"><button type="submit" className="btn primary">Save changes</button></div>
+        <Problem error={act.error && `Could not save. ${act.error}`} retry={act.retry} />
+        <div className="row end">{saved && !act.busy && <b><span aria-hidden>✓</span> Saved</b>}<button type="submit" className="btn primary" disabled={act.busy}>{act.busy ? 'Saving…' : 'Save changes'}</button></div>
       </form>
       <button type="button" className="btn" onClick={signOut}>Sign out</button>
     </>

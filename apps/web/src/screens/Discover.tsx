@@ -1,16 +1,16 @@
 import { type FormEvent, useState } from 'react'
 import { call, flag } from '../api'
 import { threadState } from '../links'
-import { ApproachChip, nameOf, Portrait, Problem, time, useApp, usePoll, Why } from '../ui'
+import { ApproachChip, Loading, nameOf, Portrait, Problem, time, useApp, usePoll, Why } from '../ui'
 import { Connect } from './Connect'
 
 export function DiscoverScreen() {
-  const { session, go } = useApp()
+  const { session, go, say } = useApp()
   const [text, setText] = useState(flag('q') ?? '')
   const [q, setQ] = useState(text)
   const [asking, setAsking] = useState<string>()
   const { data, error, reload } = usePoll(() => call(session, 'GET /api/discover', { query: { q } }), [session.token, q])
-  const star = (id: string, on: boolean) => call(session, on ? 'PUT /api/booths/:id/star' : 'DELETE /api/booths/:id/star', { params: { id } }).then(reload, reload)
+  const star = (id: string, on: boolean) => call(session, on ? 'PUT /api/booths/:id/star' : 'DELETE /api/booths/:id/star', { params: { id } }).then(reload, () => { say(`Could not ${on ? 'star' : 'unstar'} that booth. Try again.`); reload() })
   const submit = (e: FormEvent) => { e.preventDefault(); setQ(text) }
   return (
     <>
@@ -20,7 +20,9 @@ export function DiscoverScreen() {
         <button type="submit" className="btn primary">Search</button>
       </form></search>
       <Problem error={error} />
+      <Loading of={{ data, error }} />
       {data && <p className="muted" aria-live="polite">{q ? `Results for “${data.query}”` : 'Picked from your topics'}</p>}
+      {data && <>
       <h2>Talks</h2>
       <ul className="results">
         {data?.talks.map(({ talk, fit, why }) => (
@@ -57,6 +59,7 @@ export function DiscoverScreen() {
           </li>
         ))}
       </ul>
+      </>}
     </>
   )
 }

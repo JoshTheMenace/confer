@@ -5,7 +5,7 @@ import { contactLink, httpsUrl } from './links'
 import { silhouetteUrl } from './Silhouette'
 
 type Polled<T> = { data?: T; error?: string; reload: () => Promise<void> }
-export type Ctx = { session: Session; me: Me; setMe: (me: Me) => void; route: string; go: (route: string) => void; say: (text: string) => void; signOut: () => void; stage: boolean; inbox: Polled<Api['GET /api/inbox']['res'] | undefined> }
+export type Ctx = { session: Session; me: Me; setMe: (me: Me) => void; route: string; go: (route: string) => void; say: (text: string) => void; signOut: () => void; stage: boolean; inbox: Polled<Api['GET /api/inbox']['res'] | undefined>; people: Polled<Api['GET /api/people']['res'] | undefined> }
 export const AppCtx = createContext<Ctx>(null!)
 export const useApp = () => useContext(AppCtx)
 
@@ -16,16 +16,18 @@ export const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour
 export const nameOf = (c: Card) => c.name ?? 'This person'
 export const who = (c: Card) => (c.kind === 'sponsor' ? `${c.name} booth` : c.name ?? 'Name not shared')
 
-/** Loads now, every 2 seconds while the page is visible, and right after any write in this page. A failed poll keeps the last data. */
-export function usePoll<T>(fn: () => Promise<T>, deps: unknown[]): Polled<T> {
+/** Loads now, every `every` ms while the page is visible (0: not on a timer), when the page comes back, and right after any write in this page. A failed poll keeps the last data. */
+export function usePoll<T>(fn: () => Promise<T>, deps: unknown[], every = 4000): Polled<T> {
   const [data, setData] = useState<T>()
   const [error, setError] = useState<string>()
   const reload = useCallback(() => fn().then((d) => { setData(d); setError(undefined) }, (e: Error) => setError(e.message)), deps)
   useEffect(() => {
     reload()
-    const t = setInterval(() => document.visibilityState === 'visible' && reload(), 2000)
+    const tick = () => { if (!document.hidden) reload() }
+    const t = every ? setInterval(tick, every) : undefined
     addEventListener(WROTE, reload)
-    return () => { clearInterval(t); removeEventListener(WROTE, reload) }
+    document.addEventListener('visibilitychange', tick)
+    return () => { clearInterval(t); removeEventListener(WROTE, reload); document.removeEventListener('visibilitychange', tick) }
   }, [reload])
   return { data, error, reload }
 }
@@ -43,6 +45,14 @@ export function useAct() {
   }
   return { busy, error, run, retry: () => { if (last.current) run(last.current) } }
 }
+
+/** Until a list's first answer: a placeholder, so an empty-state message never flashes before the data. */
+export const Loading = ({ of }: { of: { data?: unknown; error?: string } }) => (of.data === undefined && !of.error ? <p className="loading" role="status" aria-busy="true">Loading…</p> : null)
+
+/** The last card seen for each person, so their page never goes blank while the people list catches up. */
+const cards = new Map<string, Card>()
+export const keepCard = (session: Session, card: Card) => cards.set(`${session.token}:${card.id}`, card)
+export const keptCard = (session: Session, id: string) => cards.get(`${session.token}:${id}`)
 
 export const Problem = ({ error, retry }: { error?: string; retry?: () => void }) => (error ? (
   <p role="alert" className="problem">{error}{retry && <button type="button" className="btn" onClick={retry}>Try again</button>}</p>

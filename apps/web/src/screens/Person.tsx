@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react'
 import type { ContactField, Receipt } from '../../../api/src/contract'
 import { call, flag } from '../api'
-import { ApproachChip, Badge, CommonList, ContactCard, FieldPicker, Icon, listFields, nameOf, Portrait, Problem, ReceiptSlip, Stamp, useAct, useApp, usePoll, who } from '../ui'
+import { ApproachChip, Badge, CommonList, ContactCard, FieldPicker, Icon, keepCard, keptCard, listFields, Loading, nameOf, Portrait, Problem, ReceiptSlip, Stamp, useAct, useApp, who } from '../ui'
 import { Connect } from './Connect'
 
 export function PersonScreen({ id }: { id: string }) {
-  const { session, me, say, go, inbox } = useApp()
-  const { data, error } = usePoll(() => call(session, 'GET /api/people'), [session.token])
+  const { session, me, say, go, inbox, people: { data, error } } = useApp()
   const [fields, setFields] = useState<ContactField[]>(me.shareFields)
   const [receipt, setReceipt] = useState<Receipt>()
   const act = useAct()
-  const card = data?.people.find((p) => p.id === id)
+  const found = data?.people.find((p) => p.id === id)
+  if (found) keepCard(session, found)
+  const card = found ?? keptCard(session, id) // the list is a search that lags a write: keep the card we already have
   useEffect(() => { if (flag('unshare') !== null && card?.iShared) unshare() }, [card?.iShared?.at]) // deep link: plays Unshare once
-  if (!card) return <><h1 tabIndex={-1}>Person</h1><Problem error={error ?? (data && 'You have not met this person yet.')} /><button type="button" className="btn" onClick={() => go('people')}>Back to Recently met</button></>
+  if (!card) return <><h1 tabIndex={-1}>Person</h1><Problem error={error ?? (data && 'You have not met this person yet.')} /><Loading of={{ data, error }} /><button type="button" className="btn" onClick={() => go('people')}>Back to Recently met</button></>
   const name = nameOf(card), they = card.theyShared
   const last = [...(inbox.data?.chats ?? []), ...(inbox.data?.requests ?? [])].find((t) => t.id === id)?.last
   const share = () => { setReceipt(undefined); act.run(() => call(session, 'POST /api/people/:id/share', { params: { id }, body: { fields } }).then(() => say(`Shared your card with ${name}.`))) }

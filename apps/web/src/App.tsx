@@ -8,7 +8,7 @@ import { InboxScreen } from './screens/Inbox'
 import { LeadsScreen } from './screens/Leads'
 import { PeopleScreen } from './screens/People'
 import { PersonScreen } from './screens/Person'
-import { PulseScreen, usePulse } from './screens/Pulse'
+import { PulseScreen, StagePulse, usePulse } from './screens/Pulse'
 import { MeScreen, Onboarding, PrintScreen } from './screens/profile'
 import { ScanScreen } from './screens/Scan'
 import { Scenery } from './Scenery'
@@ -93,7 +93,7 @@ export function App({ slot = 'solo', persona, start, inMemory }: { slot?: string
     me: <MeScreen />, print: <PrintScreen me={me} />, leads: <LeadsScreen />, booth: <BoothScreen />, pulse: <PulseScreen />,
   }[page]
   return (
-    <AppCtx value={{ session, me, setMe, route, go, say: setSaid, signOut: () => setToken(null), stage: !!inMemory, inbox }}>
+    <AppCtx value={{ session, me, setMe, route, go, say: setSaid, signOut: () => setToken(null), stage: !!inMemory, inbox, people }}>
       <div className="app">
         <header className="bar"><span className="wordmark">Confer</span><span className="whoami">{me.displayName} · badge {me.tagId}</span></header>
         <main ref={main} className="screen" key={page + (id ?? '')}>{screen}</main>
@@ -115,7 +115,7 @@ function Phone({ slot, initial, start }: { slot: string; initial: Persona; start
   return (
     <section className="phone-wrap" aria-label={`${personas[persona][0]}'s phone`}>
       <fieldset className="switch"><legend className="sr">Who holds this phone</legend>
-        {(Object.keys(personas) as Persona[]).map((p) => <button type="button" key={p} aria-pressed={p === persona} onClick={() => setPersona(p)}>{personas[p][0]}</button>)}
+        {(Object.keys(personas) as Persona[]).map((p) => <button type="button" key={p} aria-pressed={p === persona} onClick={() => setPersona(p)}>{p === 'booth' ? 'Booth' : personas[p][0]}</button>)}
       </fieldset>
       <div className="phone"><App key={persona} slot={slot} persona={persona} start={persona === initial ? start : undefined} inMemory /></div>
     </section>
@@ -126,8 +126,8 @@ const pct = (n: number) => `${Math.round(n * 100)}%`
 
 /** The projector view: two live phones and the event's numbers, so the room sees cause and effect together. */
 export function Stage() {
-  const { data } = usePulse(useMemo(() => ({ slot: 'stage', token: personas.organizer[1] }), []))
-  const t = data?.totals, p95 = data?.health.p95Ms
+  const pulse = usePulse(useMemo(() => ({ slot: 'stage', token: personas.organizer[1] }), []))
+  const { data } = pulse, t = data?.totals, slo = data?.health.source === 'dash0' ? data.health.slo : undefined
   const numbers: [string, number, ((n: number) => string)?][] = t ? [['Meetings', t.meetings], ['Shared', t.shares], ['Unshared', t.unshares], ['Requests', t.requests], ['Share rate', t.shareRate, pct]] : []
   return (
     <div className="stage">
@@ -143,12 +143,14 @@ export function Stage() {
         <section className="strip" aria-label={isMock ? 'Event numbers, sample data' : 'Event numbers, live'}>
           <p className="live">{isMock ? 'Sample data' : 'Live'}</p>
           {numbers.map(([label, value, format]) => <p className="stat" key={label}><b><Count value={value} format={format} /></b><span>{label}</span></p>)}
-          {t && <p className="stat"><b>{p95 === undefined ? '–' : <Count value={p95} />}</b><span>p95 ms</span></p>}
+          {t && <p className="stat">{slo ? <><b><Count value={slo.current} format={(n) => `${(n * 100).toFixed(1)}%`} /></b><span>Fast · SLO {pct(slo.target)} · <strong>{slo.ok ? 'OK' : 'At risk'}</strong></span></> : <><b>–</b><span>SLO not available</span></>}</p>}
           {!t && <p className="warming">Numbers are warming up…</p>}
         </section>
       </header>
-      <Phone slot="left" initial={(flag('left') as Persona) ?? 'amara'} start={flag('l') ?? 'scan'} />
-      <Phone slot="right" initial={(flag('right') as Persona) ?? 'diego'} start={flag('r') ?? 'inbox'} />
+      <StagePulse value={pulse}>
+        <Phone slot="left" initial={(flag('left') as Persona) ?? 'amara'} start={flag('l') ?? 'scan'} />
+        <Phone slot="right" initial={(flag('right') as Persona) ?? 'diego'} start={flag('r') ?? 'inbox'} />
+      </StagePulse>
     </div>
   )
 }

@@ -2,7 +2,7 @@ import { type CSSProperties, type FormEvent, useEffect, useState } from 'react'
 import type { Card } from '../../../api/src/contract'
 import { call, flag, isMock } from '../api'
 import { Scanner } from '../scan'
-import { ApproachChip, Badge, CommonList, nameOf, Portrait, Problem, useAct, useApp, usePoll, who } from '../ui'
+import { ApproachChip, Badge, CommonList, keepCard, nameOf, Portrait, Problem, useAct, useApp, usePoll, who } from '../ui'
 import { Connect } from './Connect'
 
 const tagList = (v: string | null) => (v ?? '').split(',').map(Number).filter(Boolean)
@@ -37,7 +37,7 @@ function BoothNote({ card }: { card: Card }) {
 }
 
 export function ScanScreen() {
-  const { session, me, say, go, stage } = useApp()
+  const { session, me, say, go, stage, people } = useApp()
   const booth = me.kind === 'sponsor'
   const [ids, setIds] = useState<string[]>([])
   const [caught, setCaught] = useState<Card[]>([])
@@ -45,11 +45,11 @@ export function ScanScreen() {
   const [typed, setTyped] = useState('')
   const act = useAct()
   // The catch stays live, so "Request sent" shows up on the card the moment it is true.
-  const people = usePoll(() => call(session, 'GET /api/people'), [session.token])
   const cards = caught.map((c) => people.data?.people.find((p) => p.id === c.id) ?? c).filter((c) => ids.includes(c.id))
   const onCatch = (tagIds: number[], source: 'camera' | 'manual' = 'camera') => act.run(() => call(session, 'POST /api/scan', { body: { tagIds, source } }).then(({ cards }) => {
     if (!cards.length) throw new Error('That badge is not registered yet.')
     setCaught(cards)
+    for (const c of cards) keepCard(session, c)
     setIds(cards.map((c) => c.id))
     say(cards.map((c) => `Met ${who(c)}: ${c.common.length} things in common.`).join(' '))
   }))

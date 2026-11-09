@@ -114,6 +114,13 @@ blockquote { border-left: 5px solid var(--mark); padding: 2px 0 2px 12px; font-s
 .results { display: flex; flex-direction: column; gap: 10px } .results li > small, .results li > b { display: block }
 .fit { float: right; font-weight: 700; color: var(--accent); font-size: .9rem } .star { align-self: start }
 .person-hit, .visitor { flex-direction: row; align-items: start } .person-hit .portrait, .visitor .portrait { width: 64px; flex: none } .visitor > div, .person-hit > div { flex: 1; display: flex; flex-direction: column; gap: 6px }
+.visitor.slim { padding: 8px 10px; gap: 10px } .visitor.slim .portrait { width: 44px } .visitor.slim > div { gap: 2px } .visitor.slim p { margin: 0; display: flex; flex-wrap: wrap; gap: 4px; align-items: center } .visitor.slim .chip { font-size: .875rem; padding: 2px 8px } .visitor.slim .fit { margin-left: auto }
+/* The Kubernetes proof: the export button with its verdict, and one grant line per lead. */
+.export { display: flex; flex-direction: column; gap: 6px; align-items: start } .export p { margin: 0 } .export [role='status'] { font-weight: 700 } .export [role='status']:not(:empty)::before { content: '✓ ' }
+.k8s { display: flex; flex-direction: column; gap: 2px; align-items: start; margin: 0 } .k8s b { font-size: .875rem; padding: 1px 8px; border-radius: 4px; border: 1.5px solid currentColor; color: var(--open) } .k8s.denied b { color: var(--accent) } .k8s.unavailable b { color: var(--soft); border-style: dashed }
+.k8s code { font: .875rem/1.35 ui-monospace, Menlo, monospace; color: var(--soft); overflow-wrap: anywhere }
+.loading { color: var(--soft); font-weight: 600; padding: 18px 14px; border: 1.5px dashed var(--line); border-radius: 4px; text-align: center }
+.strip .stat strong { color: #212326 }
 .pickme { display: flex; align-items: center; gap: 8px; min-height: 44px } .status { font-weight: 700; color: var(--ink) }
 /* Numbers: a big bold figure over a small tracked label. */
 .stats { display: flex; flex-wrap: wrap; gap: 8px } .stats .stat { flex: 1 1 130px }

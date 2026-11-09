@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { call } from '../api'
 import { threadState } from '../links'
-import { Portrait, Problem, Stamp, useAct, useApp, usePoll, who } from '../ui'
+import { Loading, Portrait, Problem, Stamp, useAct, useApp, who } from '../ui'
 
 const filters = { all: 'All', shared: 'Shared with me', scanned: 'Scanned me' }
 
 export function PeopleScreen() {
-  const { session, say, go } = useApp()
-  const { data, error } = usePoll(() => call(session, 'GET /api/people'), [session.token])
+  const { session, say, go, people: { data, error } } = useApp()
   const [filter, setFilter] = useState<keyof typeof filters>('all')
   const [asking, setAsking] = useState(false)
   const act = useAct()
@@ -18,11 +17,12 @@ export function PeopleScreen() {
   return (
     <>
       <h1 tabIndex={-1}>Recently met</h1>
-      <p className="progress"><b>{people.length}</b> met · <b>{shared.length}</b> shared with you</p>
+      {data && <p className="progress"><b>{people.length}</b> met · <b>{shared.length}</b> shared with you</p>}
       <fieldset className="row filters"><legend className="sr">Filter people</legend>
         {(Object.keys(filters) as (keyof typeof filters)[]).map((f) => <button type="button" key={f} className="chip pick" aria-pressed={filter === f} onClick={() => setFilter(f)}>{filters[f]}</button>)}
       </fieldset>
       <Problem error={error} />
+      <Loading of={{ data, error }} />
       {data && !list.length && <p className="paper muted">{filter === 'all' ? 'Nobody yet. Scan a badge to meet someone.' : 'Nobody here yet.'}</p>}
       <ul className="wall">
         {list.map((p) => (

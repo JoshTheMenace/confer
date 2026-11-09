@@ -5,13 +5,12 @@ import { Badge, Print } from './screens/Badge'
 import { Dex } from './screens/Dex'
 import { Inbox } from './screens/Inbox'
 import { Leads } from './screens/Leads'
-import { Matches } from './screens/Matches'
 import { Onboarding } from './screens/Onboarding'
 import { Scan } from './screens/Scan'
 import { Loading, Problem } from './ui'
 
 const tabs: Record<Me['kind'], [Route, string, string][]> = {
-  attendee: [['scan', '📷', 'Scan'], ['badge', '🪪', 'Badge'], ['dex', '📚', 'Dex'], ['inbox', '📨', 'Inbox'], ['matches', '✨', 'Matches']],
+  attendee: [['scan', '📷', 'Scan'], ['badge', '🪪', 'Badge'], ['dex', '📚', 'Dex'], ['inbox', '📨', 'Inbox']],
   sponsor: [['scan', '📷', 'Scan'], ['leads', '📊', 'Leads'], ['badge', '🪪', 'Badge']],
 }
 
@@ -43,7 +42,7 @@ export function App() {
 
   const screens: Record<Route, (me: Me) => ReactNode> = {
     scan: (me) => <Scan me={me} />, badge: (me) => <Badge me={me} onChange={setMe} />, print: (me) => <Print me={me} />,
-    dex: () => <Dex />, inbox: () => <Inbox />, matches: () => <Matches />, leads: () => <Leads />,
+    dex: () => <Dex />, inbox: () => <Inbox />, leads: () => <Leads />,
   }
 
   return (

@@ -8,7 +8,8 @@
     "start": "node --import ./dist/otel.js dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "seed": "tsx --env-file=../../.env src/seed.ts"
+    "seed": "tsx --env-file=../../.env src/seed.ts",
+    "seed:talks": "tsx --env-file=../../.env src/talks.ts"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^9.5.1",

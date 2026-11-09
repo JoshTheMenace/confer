@@ -138,7 +138,7 @@ legend { font-weight: 900; padding: 0 6px }
 .contact { border: 3px solid var(--ink); padding: 12px; display: grid; gap: 8px; background: #fff; color: #111 }
 .contact dt { font: 900 11px system-ui; text-transform: uppercase; letter-spacing: .08em }
 .contact dd { font-weight: 700; overflow-wrap: anywhere }
-.contact a { display: inline-block; padding: 6px 0 }
+.contact a { display: inline-flex; align-items: center; min-height: 44px }
 .sharebox { display: grid; gap: 10px; padding: 14px; border: 3px solid var(--ink) }
 .receipt { overflow: hidden; border-top: 8px solid var(--ink) }
 .receipt > div { padding: 12px; background: #fff; color: #111; border: 2px dashed #111; border-top: 0; font: 600 14px/1.5 ui-monospace, monospace }

@@ -12,6 +12,6 @@ spec:
           containers:
             - name: expirer
               image: dex-api
-              command: ["node", "--import", "@opentelemetry/auto-instrumentations-node/register", "dist/expire.js"]
+              command: ["node", "--import", "./dist/otel.js", "dist/expire.js"]
               envFrom: [{ secretRef: { name: dex-secrets } }]
               env: [{ name: OTEL_SERVICE_NAME, value: dex-consent-expirer }]

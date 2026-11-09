@@ -23,11 +23,12 @@ const panels = [
 ]
 
 const query = ([seriesNameFormat, query]) => ({ kind: 'TimeSeriesQuery', spec: { plugin: { kind: 'PrometheusTimeSeriesQuery', spec: { query, seriesNameFormat } } } })
+const title = 'Confer: event health'
 export const dashboard = {
   kind: 'Dashboard',
-  metadata: { name: 'confer-event-health' },
+  metadata: { name: title }, // Dash0 lists dashboards by this name
   spec: {
-    display: { name: 'Confer: event health', description: 'Is the event app healthy, and is the product being used? Applied from observability/ in the repo.' },
+    display: { name: title, description: 'Is the event app healthy, and is the product being used? Applied from observability/ in the repo.' },
     duration: '1h',
     refreshInterval: '30s',
     panels: Object.fromEntries(panels.map(([name, unit, ...queries], i) => [`p${i}`, {

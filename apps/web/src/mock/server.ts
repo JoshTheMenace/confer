@@ -74,7 +74,7 @@ export function createMock(now: () => number = Date.now) {
 
   function request(booth: Me, to: string, note: string, attachment = booth.attachment, back = 0) {
     const a = get(to)
-    if (muted.has(`${to}>${booth.id}`)) return false
+    if (muted.has(`${to}>${booth.id}`)) return null // muted booths cannot ask again
     const auto = a.autoShare === 'matching' ? commonOf(a.interests, booth.interests).length >= 2 : a.autoShare === 'starred' && a.starred.includes(booth.id)
     requests.unshift({ id: `q${++seq}`, to, from: booth.id, booth: card(a, booth), note, attachment, why: commonOf(a.interests, booth.interests), status: auto ? 'shared' : 'pending', source: meets.has(pair(to, booth.id)) ? 'scan' : 'match', createdAt: iso(back), expiresAt: new Date(now() + 864e5).toISOString() })
     if (auto) share(a, booth.id, a.shareFields, 'auto', back)
@@ -135,7 +135,7 @@ export function createMock(now: () => number = Date.now) {
     },
     'POST /api/booth/requests': (me, { body }) => {
       const sent = body.to.map((to) => request(me, to, body.note, body.attachment))
-      return { sent: sent.filter((s) => s !== false).length, autoShared: sent.filter(Boolean).length }
+      return { sent: sent.filter((s) => s !== null).length, autoShared: sent.filter(Boolean).length }
     },
     'GET /api/booth/prospects': (me) => ({
       prospects: attendees().filter((a) => a.openToBooths && !meets.has(pair(a.id, me.id))).map((a) => visitor(me, a, 'match')).filter((v) => v.card.common.length).sort((a, b) => b.fit - a.fit),

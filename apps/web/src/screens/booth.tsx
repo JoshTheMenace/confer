@@ -32,7 +32,7 @@ export function LeadsScreen() {
   const everyone = [...(booth.data?.visitors ?? []), ...(prospects.data?.prospects ?? [])]
   const open = everyone.filter((v) => !v.request).map((v) => v.card.id)
   const send = (to: string[]) => call(session, 'POST /api/booth/requests', { body: { to, note, attachment: me.attachment } }).then((r) => {
-    say(`Sent ${r.sent} requests. ${r.autoShared} shared right away.`); setPicked([]); booth.reload(); prospects.reload()
+    say(`Sent ${r.sent} ${r.sent === 1 ? 'request' : 'requests'}. ${r.autoShared} shared right away.`); setPicked([]); booth.reload(); prospects.reload()
   })
   const row = (v: Visitor) => <VisitorRow key={v.card.id} v={v} picked={picked.includes(v.card.id)} onPick={(on) => setPicked(on ? [...picked, v.card.id] : picked.filter((x) => x !== v.card.id))} />
   const s = booth.data?.stats

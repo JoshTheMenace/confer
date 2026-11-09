@@ -4,11 +4,12 @@ import { call, flag, isMock } from '../api'
 import { Scanner } from '../scan'
 import { ApproachChip, Badge, CommonList, FieldPicker, fieldNames, listFields, nameOf, Portrait, Problem, Stamp, time, useApp, usePoll } from '../ui'
 
-const who = (c: Card) => (c.kind === 'sponsor' ? `${nameOf(c)} booth` : nameOf(c))
+const who = (c: Card) => (c.kind === 'sponsor' ? `${c.name} booth` : c.name ?? 'Name not shared')
 const tagList = (v: string | null) => (v ?? '').split(',').map(Number).filter(Boolean)
 
 export function ScanScreen() {
-  const { session, say, go } = useApp()
+  const { session, me, say, go } = useApp()
+  const booth = me.kind === 'sponsor'
   const [cards, setCards] = useState<Card[]>([])
   const [problem, setProblem] = useState<string>()
   const onCatch = (tagIds: number[], source: 'camera' | 'manual' = 'camera') =>
@@ -22,6 +23,8 @@ export function ScanScreen() {
     <>
       <h1 tabIndex={-1}>Scan a badge</h1>
       {cards.length > 0 ? (
+        <>
+        {cards.length > 1 && <p className="progress"><b>{cards.length}</b> people at once. Swipe to see each.</p>}
         <section className={`catch ${cards.length > 1 ? 'fan' : ''}`} aria-label="Just met">
           <span className="ripple" aria-hidden />
           {cards.map((c, i) => (
@@ -35,12 +38,22 @@ export function ScanScreen() {
                 </div>
               </div>
               <CommonList common={c.common} them={nameOf(c)} />
-              <p className="note">{nameOf(c)} sees your silhouette too. Nothing else moves until one of you taps Share.</p>
-              <div className="row end"><button className="btn primary" onClick={() => go(`people/${c.id}`)}>Open {nameOf(c)}'s card</button></div>
+              {booth ? (
+                <>
+                  <p className="note">You see topics and fit, not a name. Send a note; they choose whether to share.</p>
+                  <div className="row end"><button className="btn primary" onClick={() => go('leads')}>Send a request</button></div>
+                </>
+              ) : (
+                <>
+                  <p className="note">{nameOf(c)} sees your silhouette too. Nothing else moves until one of you taps Share.</p>
+                  <div className="row end"><button className="btn primary" onClick={() => go(`people/${c.id}`)}>Open {nameOf(c)}'s card</button></div>
+                </>
+              )}
             </Badge>
           ))}
-          <button className="btn" onClick={() => setCards([])}>Scan another</button>
         </section>
+        <button className="btn" onClick={() => setCards([])}>Scan another</button>
+        </>
       ) : (
         <>
           <p className="muted">Point the camera at a badge, even from across the table. You will see a silhouette and what you have in common.</p>
@@ -124,7 +137,7 @@ function ReceiptSlip({ receipt, name }: { receipt: Receipt; name: string }) {
     <div className="printer" role="status">
       <div className="slip">
         <b>Deletion receipt</b>
-        <p>{name} no longer has your {listFields(receipt.fields).toLowerCase()} or your photo.</p>
+        <p>Deleted from {name}: {listFields(receipt.fields)}, photo.</p>
         <p>{time(receipt.at)} · trace {receipt.traceId?.slice(0, 8)}</p>
       </div>
     </div>
@@ -143,6 +156,7 @@ export function PersonScreen({ id }: { id: string }) {
     if (card?.theyShared && !had.current && data) say(`${nameOf(card)} shared their card with you.`)
     had.current = !!card?.theyShared
   }, [card?.theyShared?.at])
+  useEffect(() => { if (flag('unshare') !== null && card?.iShared) unshare() }, [card?.iShared?.at]) // deep link: plays Unshare once
   if (!card) return <><h1 tabIndex={-1}>Person</h1><Problem error={error ?? (data && 'You have not met this person yet.')} /><button className="btn" onClick={() => go('people')}>Back to People</button></>
   const name = nameOf(card), they = card.theyShared
   const act = (p: Promise<unknown>, said: string) => p.then(() => { say(said); reload() }, (e: Error) => setProblem(e.message))
@@ -192,12 +206,6 @@ const receiptWords = { shared: ['↗', 'You shared with'], opened: ['👁', 'Ope
 export function InboxScreen() {
   const { session, say } = useApp()
   const { data, error, reload } = usePoll(() => call(session, 'GET /api/inbox'), [session.token])
-  const count = useRef<number>(undefined)
-  const pending = data?.requests.filter((r) => r.status === 'pending').length
-  useEffect(() => {
-    if (pending !== undefined && count.current !== undefined && pending > count.current) say('A booth sent you a request.')
-    count.current = pending
-  }, [pending])
   const answer = (id: string, action: 'share' | 'ignore' | 'mute', said: string) => call(session, 'POST /api/inbox/:id', { params: { id }, body: { action } }).then(() => { say(said); reload() })
   return (
     <>

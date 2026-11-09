@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react'
 import type { Api, Approach, AutoShare, Me } from '../../../api/src/contract'
 import { call, isMock, type Session } from '../api'
 import { BadgeSheet, TagSvg } from '../scan'
+import { Silhouette } from '../Silhouette'
 import { approachLabel, FieldPicker, Problem, useApp } from '../ui'
 
 export type Draft = Api['POST /api/me/signup']['body']
@@ -154,6 +155,7 @@ export function MeScreen() {
         <p className="hello">Hi, I'm <b>{me.displayName}</b> {me.pronouns && <small>{me.pronouns}</small>}</p>
         <div className="tag"><TagSvg id={me.tagId} size={248} /></div>
         <p className="muted">Badge {me.tagId}. Hold this up to be scanned. It shows no personal details.</p>
+        <p className="seen"><Silhouette id={me.id} label="Your silhouette" /><span>This is all anyone sees of you until you tap Share.</span></p>
         <button className="btn" onClick={() => go('print')}>Printable badge sheet</button>
       </div>
       <form onSubmit={save} className="paper settings">

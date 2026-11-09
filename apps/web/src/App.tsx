@@ -4,7 +4,7 @@ import { call, flag, loadToken, saveToken, type Session } from './api'
 import { DiscoverScreen, InboxScreen, PeopleScreen, PersonScreen, ScanScreen } from './screens/attendee'
 import { BoothScreen, LeadsScreen, PulseScreen, PulseTotals, usePulse } from './screens/booth'
 import { MeScreen, Onboarding, PrintScreen } from './screens/profile'
-import { AppCtx } from './ui'
+import { AppCtx, usePoll } from './ui'
 
 const tabs: Record<Kind, [string, string, string][]> = {
   attendee: [['scan', 'Scan', '◎'], ['people', 'People', '☺'], ['inbox', 'Inbox', '✉'], ['discover', 'Discover', '⌕'], ['me', 'Me', '▣']],
@@ -35,6 +35,15 @@ export function App({ slot = 'solo', persona, start, inMemory }: { slot?: string
     addEventListener('hashchange', onHash)
     return () => removeEventListener('hashchange', onHash)
   }, [inMemory])
+  // The Inbox tab lights up, and says so, wherever you are when a booth's request lands.
+  const inbox = usePoll(async () => (me?.kind === 'attendee' ? call(session, 'GET /api/inbox') : undefined), [session, me?.kind])
+  const pending = inbox.data?.requests.filter((r) => r.status === 'pending').length ?? 0
+  const before = useRef<number>(undefined)
+  useEffect(() => {
+    if (!inbox.data) return
+    if (before.current !== undefined && pending > before.current) setSaid('A booth sent you a request.')
+    before.current = pending
+  }, [inbox.data])
   const first = useRef(true)
   useEffect(() => {
     // Move focus to the new screen's heading, but not on first paint (Stage has two Apps).
@@ -55,7 +64,7 @@ export function App({ slot = 'solo', persona, start, inMemory }: { slot?: string
         <main ref={main} className="screen" key={page + (id ?? '')}>{screen}</main>
         <nav aria-label="Sections">
           {mine.map(([t, label, icon]) => (
-            <a key={t} href={`#/${t}`} aria-current={page === t ? 'page' : undefined} onClick={(e) => { e.preventDefault(); go(t) }}><span aria-hidden>{icon}</span>{label}</a>
+            <a key={t} href={`#/${t}`} aria-current={page === t ? 'page' : undefined} onClick={(e) => { e.preventDefault(); go(t) }}><span aria-hidden>{icon}</span>{label}{t === 'inbox' && pending > 0 && <b className="dot" key={pending}>{pending}<span className="sr"> waiting</span></b>}</a>
           ))}
         </nav>
         <p className="sr" aria-live="polite" role="status">{said}</p>

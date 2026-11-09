@@ -11,7 +11,7 @@ export const reducedMotion = () => document.documentElement.classList.contains('
 export const fieldNames: Record<ContactField, string> = { email: 'Email', linkedin: 'LinkedIn', github: 'GitHub' }
 export const listFields = (fields: ContactField[]) => fields.map((f) => fieldNames[f]).join(', ') || 'nothing'
 export const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-export const nameOf = (c: Card) => c.name ?? 'Someone (name not shared)'
+export const nameOf = (c: Card) => c.name ?? 'This person'
 
 /** Loads now, then every 2 seconds while the page is visible. */
 export function usePoll<T>(fn: () => Promise<T>, deps: unknown[]) {

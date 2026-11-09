@@ -25,6 +25,7 @@ async function lookUp(tokenHash: string): Promise<Me | undefined> {
 // A token never changes hands, so a pod may remember who it belongs to for AUTH_CACHE_SECONDS (300 in k8s/base/api.yaml;
 // off by default). Unknown tokens are never remembered.
 const known = new Map<string, { me: Me; until: number }>()
+export const forget = (tokenHash: string) => known.delete(tokenHash)
 async function resolve(tokenHash: string): Promise<Me | undefined> {
   const hit = known.get(tokenHash), ttl = Number(process.env.AUTH_CACHE_SECONDS ?? 0) * 1000
   if (hit && hit.until > Date.now()) return hit.me

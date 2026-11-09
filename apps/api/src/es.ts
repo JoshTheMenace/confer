@@ -24,6 +24,7 @@ const indices = {
     discoverable: { type: 'boolean' },
     tokenHash: { type: 'keyword' }, // never returned to clients
   },
+  tags: { profile: { type: 'keyword' } }, // badge-number lock, see routes/me.ts
   vault: { email: { type: 'keyword' }, linkedin: { type: 'keyword' }, github: { type: 'keyword' } },
   catches: { catcher: { type: 'keyword' }, caught: { type: 'keyword' }, kind: { type: 'keyword' }, at: { type: 'date' } },
   consent_requests: {

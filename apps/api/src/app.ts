@@ -1,5 +1,9 @@
 import { Hono } from 'hono'
 import { es } from './es.js'
+import { catchRoutes } from './routes/catch.js'
+import { consent } from './routes/consent.js'
+import { me } from './routes/me.js'
+import { sponsor } from './routes/sponsor.js'
 import { matches } from './routes/matches.js'
 
 export const app = new Hono()
@@ -14,6 +18,10 @@ export const app = new Hono()
       openai: !!process.env.OPENAI_API_KEY,
     })
   })
+  .route('/api/me', me)
+  .route('/api/catch', catchRoutes)
+  .route('/api/consent', consent)
+  .route('/api/sponsor', sponsor)
   .route('/api/matches', matches)
 
 export type AppType = typeof app

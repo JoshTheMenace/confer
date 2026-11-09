@@ -1,69 +1,89 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { api, call, getToken, setToken, type Me } from './api'
-import { parseRoute, type Route } from './lib'
-import { Badge, Print } from './screens/Badge'
-import { Dex } from './screens/Dex'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { type Kind, type Me, type Session, call, isMock, loadToken, param, saveToken } from './api'
+import { Booth, Leads } from './screens/Booth'
+import { Discover } from './screens/Discover'
 import { Inbox } from './screens/Inbox'
-import { Leads } from './screens/Leads'
-import { Matches } from './screens/Matches'
+import { MeScreen, Print } from './screens/Me'
 import { Onboarding } from './screens/Onboarding'
+import { People, Person } from './screens/People'
+import { PulseScreen } from './screens/Pulse'
 import { Scan } from './screens/Scan'
-import { Loading, Problem } from './ui'
+import { Icon, type IconName, Loading } from './ui'
 
-const tabs: Record<Me['kind'], [Route, string, string][]> = {
-  attendee: [['scan', '📷', 'Scan'], ['badge', '🪪', 'Badge'], ['dex', '📚', 'Dex'], ['inbox', '📨', 'Inbox'], ['matches', '✨', 'Matches']],
-  sponsor: [['scan', '📷', 'Scan'], ['leads', '📊', 'Leads'], ['badge', '🪪', 'Badge']],
+type AppCtx = {
+  session: Session; me: Me; setMe: (m: Me) => void; signOut: () => void
+  go: (route: string) => void
+  say: (message: string) => void // shown as a toast and read out by screen readers
+  deep: (key: string) => string | null // deep-link query params; ignored inside Stage so two phones don't both act on them
 }
+const Ctx = createContext<AppCtx>(null!)
+export const useApp = () => useContext(Ctx)
 
-function useRoute() {
-  const [route, setRoute] = useState(() => parseRoute(location.hash))
+const tabs: Record<Kind, [string, IconName, string][]> = {
+  attendee: [['scan', 'scan', 'Scan'], ['people', 'people', 'People'], ['inbox', 'inbox', 'Inbox'], ['discover', 'search', 'Discover'], ['me', 'badge', 'Me']],
+  sponsor: [['scan', 'scan', 'Scan'], ['leads', 'chart', 'Leads'], ['booth', 'booth', 'Booth']],
+  organizer: [['pulse', 'pulse', 'Pulse']],
+}
+const fromHash = () => location.hash.replace(/^#\/?/, '')
+
+/** One signed-in phone. Standalone it follows the URL hash; inside Stage (`framed`) it keeps its route in memory. */
+export function App({ slot, token, start = '', framed = false }: { slot: string; token?: string; start?: string; framed?: boolean }) {
+  const [session, setSession] = useState<Session>(() => ({ slot, token: token ?? loadToken(slot) }))
+  const [me, setMe] = useState<Me | null>() // undefined: loading, null: signed out
+  const [error, setError] = useState<string>()
+  const [route, setRoute] = useState(framed ? start : fromHash)
+  const [toast, setToast] = useState('')
+  const main = useRef<HTMLElement>(null)
+  const first = useRef(true)
+
+  const signIn = useCallback((t: string) => { saveToken(slot, t); setMe(undefined); setSession({ slot, token: t }) }, [slot])
   useEffect(() => {
-    const on = () => setRoute(parseRoute(location.hash))
+    if (!session.token) return setMe(null)
+    call(session, 'GET /api/me').then((r) => setMe(r.me), (e: Error & { status?: number }) => (e.status === 401 ? signIn('') : setError(e.message)))
+  }, [session, signIn])
+  useEffect(() => {
+    if (framed) return
+    const on = () => setRoute(fromHash())
     addEventListener('hashchange', on)
     return () => removeEventListener('hashchange', on)
-  }, [])
-  return route
-}
+  }, [framed])
+  // Land keyboard and screen reader users on the new screen (but don't steal focus on first paint).
+  useEffect(() => { first.current ? (first.current = false) : main.current?.focus() }, [route])
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(''), 5000); return () => clearTimeout(t) }, [toast])
 
-export function App() {
-  const [me, setMe] = useState<Me | null>() // undefined = loading, null = signed out
-  const [error, setError] = useState<string>()
-  const route = useRoute()
-  const main = useRef<HTMLElement>(null)
-  useEffect(() => {
-    if (!getToken()) return setMe(null)
-    call(api.api.me.$get()).then((r) => setMe(r.me), (e: Error & { status?: number }) => {
-      if (e.status !== 401) return setError(e.message)
-      setToken('') // stale token: start over
-      setMe(null)
-    })
-  }, [])
-  // Move focus to the new screen so keyboard and screen reader users land on its heading.
-  useEffect(() => main.current?.focus({ preventScroll: false }), [route])
-
-  const screens: Record<Route, (me: Me) => ReactNode> = {
-    scan: (me) => <Scan me={me} />, badge: (me) => <Badge me={me} onChange={setMe} />, print: (me) => <Print me={me} />,
-    dex: () => <Dex />, inbox: () => <Inbox />, matches: () => <Matches />, leads: () => <Leads />,
+  const go = useCallback((r: string) => (framed ? setRoute(r) : void (location.hash = `#/${r}`)), [framed])
+  const [name, arg] = route.split('/')
+  const mine = me ? tabs[me.kind] : []
+  const page = mine.some(([r]) => r === name) || name === 'print' ? name : mine[0]?.[0]
+  const screens: Record<string, React.ReactNode> = {
+    scan: <Scan />, people: arg ? <Person id={arg} /> : <People />, inbox: <Inbox />, discover: <Discover />, me: <MeScreen />, print: <Print />,
+    leads: <Leads />, booth: <Booth />, pulse: <PulseScreen />,
   }
 
   return (
-    <>
-      <header className="top" style={{ maxWidth: 640, margin: '0 auto', padding: '12px 16px 0' }}>
-        <span className="logo"><i aria-hidden />Dex</span>
-        {me && <span className="muted">#{me.tagId} · {me.displayName}</span>}
+    <div className="app">
+      <header className="bar">
+        <span className="wordmark">Confer</span>
+        {isMock && <span className="tag">Demo data</span>}
+        {me && <span className="who">{me.displayName} <b>#{me.tagId}</b></span>}
       </header>
-      <main ref={main} tabIndex={-1} style={{ outline: 'none' }}>
-        {me === undefined ? (error ? <Problem error={error} /> : <Loading what="Dex" />) : me ? screens[route](me) : <Onboarding onDone={(m) => { setMe(m); location.hash = '#/badge' }} />}
+      <main ref={main} tabIndex={-1}>
+        {me === undefined ? <Loading error={error} /> : me === null ? <Onboarding onToken={signIn} /> : (
+          <Ctx.Provider value={{ session, me, setMe, go, say: setToast, signOut: () => signIn(''), deep: (k) => (framed ? null : param(k)) }}>
+            {screens[page]}
+          </Ctx.Provider>
+        )}
       </main>
-      {me && (
+      <p className="toast" role="status" aria-live="polite">{toast}</p>
+      {me && mine.length > 1 && (
         <nav className="tabs" aria-label="Main">
-          {tabs[me.kind].map(([r, icon, label]) => (
-            <a key={r} href={`#/${r}`} aria-current={route === r || (r === 'badge' && route === 'print') ? 'page' : undefined}>
-              <span aria-hidden>{icon}</span>{label}
+          {mine.map(([r, icon, label]) => (
+            <a key={r} href={`#/${r}`} aria-current={page === r ? 'page' : undefined} onClick={(e) => { if (framed) { e.preventDefault(); go(r) } }}>
+              <Icon name={icon} />{label}
             </a>
           ))}
         </nav>
       )}
-    </>
+    </div>
   )
 }

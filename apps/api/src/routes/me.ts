@@ -2,8 +2,8 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { auth, hashToken, type Me } from '../auth.js'
-import { cardFor, findProfiles, openVault } from '../consent.js'
+import { auth, hashToken, tokenLink, type Me } from '../auth.js'
+import { cardFor, openVault, profilesById } from '../consent.js'
 import { es } from '../es.js'
 import { log } from '../telemetry.js'
 
@@ -23,7 +23,7 @@ const envelopes = z.object({
 })
 
 async function myself(viewer: Me) {
-  const [p] = await findProfiles({ ids: { values: [viewer.id] } }, 1)
+  const [p] = await profilesById([viewer.id])
   return { ...p, contact: await openVault(p.id, viewer.id, cardFor({ subject: p, viewer }).unlocked) }
 }
 
@@ -42,8 +42,12 @@ export const me = new Hono<{ Variables: { me: Me } }>()
     }
     if (tagId === undefined) return c.json({ error: 'no badges left' }, 409)
     const kind = sponsorCode ? 'sponsor' : 'attendee'
-    await es.index({ index: 'vault', id, document: contact })
-    await es.index({ index: 'profiles', id, document: { ...profile, tagId, kind, tokenHash: hashToken(token) }, refresh: 'wait_for' })
+    // Independent writes, each ~0.5s on Serverless: run them together.
+    await Promise.all([
+      es.index({ index: 'vault', id, document: contact }),
+      es.index({ index: 'profiles', id, document: { ...profile, tagId, kind, tokenHash: hashToken(token) } }),
+      es.index(tokenLink(hashToken(token), { id, kind, tagId })),
+    ])
     log.info({ profile: id, tagId, kind }, 'signup')
     return c.json({ token, me: { ...profile, id, tagId, kind, contact } })
   })
@@ -52,6 +56,6 @@ export const me = new Hono<{ Variables: { me: Me } }>()
     const { contact, ...profile } = c.req.valid('json')
     const id = c.var.me.id
     if (contact) await es.update({ index: 'vault', id, doc: contact, doc_as_upsert: true })
-    await es.update({ index: 'profiles', id, doc: profile, refresh: 'wait_for' })
+    await es.update({ index: 'profiles', id, doc: profile })
     return c.json({ me: await myself(c.var.me) })
   })

@@ -61,8 +61,15 @@ export async function findProfiles(query: estypes.QueryDslQueryContainer, size =
   return res.hits.hits.map((h) => ({ ...h._source!, id: h._id! }))
 }
 
+// By id is a real-time mget, so profiles written a moment ago are found without waiting for a refresh.
+export async function profilesById(ids: string[]): Promise<Profile[]> {
+  if (!ids.length) return []
+  const res = await es.mget<Omit<Profile, 'id'>>({ index: 'profiles', ids: [...new Set(ids)], _source_excludes: ['tokenHash'] })
+  return res.docs.flatMap((d) => ('found' in d && d.found ? [{ ...d._source!, id: d._id }] : []))
+}
+
 export const cardsById = async (viewer: Viewer, ids: string[]) =>
-  new Map((await findProfiles({ ids: { values: [...new Set(ids)] } }, ids.length)).map((p) => [p.id, cardFor({ subject: p, viewer })]))
+  new Map((await profilesById(ids)).map((p) => [p.id, cardFor({ subject: p, viewer })]))
 
 // The single vault read path: callers pass fields cardFor unlocked; every read leaves a receipt.
 export async function openVault(attendee: string, viewer: string, fields: ContactField[]): Promise<Contact> {

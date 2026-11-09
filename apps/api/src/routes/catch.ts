@@ -2,7 +2,7 @@ import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { auth, type Me } from '../auth.js'
-import { cardsFor, contactFields, expiresAt, findProfiles, pairId } from '../consent.js'
+import { cardsFor, contactFields, expiresAt, findProfiles, pairId, profilesById } from '../consent.js'
 import { es } from '../es.js'
 import { catches } from '../telemetry.js'
 
@@ -26,7 +26,6 @@ export const catchRoutes = new Hono<{ Variables: { me: Me } }>()
     const leads = me.kind === 'sponsor' ? caught.filter((p) => p.kind === 'attendee') : []
     // `create` ops are idempotent: repeats of the same pair fail with 409 and change nothing.
     const res = await es.bulk({
-      refresh: 'wait_for',
       operations: [
         ...caught.flatMap((p) => [{ create: { _index: 'catches', _id: pairId(me.id, p.id) } }, { catcher: me.id, caught: p.id, kind, at }]),
         ...leads.flatMap((p) => [
@@ -42,6 +41,6 @@ export const catchRoutes = new Hono<{ Variables: { me: Me } }>()
     const me = c.var.me
     const res = await es.search<{ caught: string; at: string }>({ index: 'catches', size: 1000, query: { term: { catcher: me.id } } })
     const caughtAt = new Map(res.hits.hits.map((h) => [h._source!.caught, h._source!.at]))
-    const cards = await cardsFor(me, await findProfiles({ ids: { values: [...caughtAt.keys()] } }, caughtAt.size))
+    const cards = await cardsFor(me, await profilesById([...caughtAt.keys()]))
     return c.json({ dex: cards.map((card) => ({ ...card, caughtAt: caughtAt.get(card.id)! })).sort((a, b) => b.caughtAt.localeCompare(a.caughtAt)) })
   })

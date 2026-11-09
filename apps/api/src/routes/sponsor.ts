@@ -1,7 +1,7 @@
 import type { estypes } from '@elastic/elasticsearch'
 import { Hono } from 'hono'
 import { auth, type Me } from '../auth.js'
-import { cardsFor, findProfiles, sponsorAggQuery, tally, type ConsentRequest } from '../consent.js'
+import { cardsFor, profilesById, sponsorAggQuery, tally, type ConsentRequest } from '../consent.js'
 import { es } from '../es.js'
 
 type Terms = estypes.AggregationsStringTermsAggregate
@@ -20,7 +20,7 @@ export const sponsor = new Hono<{ Variables: { me: Me } }>()
     const reqs = requests.hits.hits.map((h) => h._source!)
     const granted = reqs.filter((r) => r.status === 'granted').map((r) => r.attendee)
     const [leads, agg] = await Promise.all([
-      findProfiles({ ids: { values: granted } }, granted.length).then((p) => cardsFor(me, p)),
+      profilesById(granted).then((p) => cardsFor(me, p)),
       es.search<unknown, Record<'interests' | 'lookingFor', Terms>>(sponsorAggQuery(caught)),
     ])
     return c.json({

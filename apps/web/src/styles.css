@@ -83,14 +83,14 @@ legend { font-weight: 600; font-size: .95rem; margin-bottom: 8px }
 .mini img, .mini svg { width: 100%; height: 100%; object-fit: cover; display: block }
 
 /* Silhouette and the reveal */
-.portrait { position: relative; display: block; width: 100%; aspect-ratio: 1 }
+.portrait { position: relative; display: block; width: 100%; aspect-ratio: 1; isolation: isolate }
 .frame { position: absolute; inset: 0; display: block; overflow: hidden; border-radius: 28%; box-shadow: inset 0 0 0 1px var(--line) }
 .sil, .photo, .photo img { position: absolute; inset: 0; width: 100%; height: 100%; display: block }
 .photo { overflow: hidden }
 .photo img { object-fit: cover }
 .beam { position: absolute; inset: 0; opacity: 0; background: linear-gradient(to bottom, transparent 50%, rgba(139, 108, 255, .3) 78%, rgba(255, 111, 125, .55) 91%, rgba(255, 180, 84, .9) 97%, #fff 99.4%, transparent) }
 .bloom { position: absolute; inset: -14%; border-radius: 34%; opacity: 0; background: var(--aurora); filter: blur(28px); z-index: -1 }
-.hero[data-shared] .bloom { opacity: .28 }
+.portrait:has(.photo) .bloom { opacity: .28 } /* the afterglow: people who shared stay softly lit */
 /* The wipe moves the mask one way and the photo the other, so only transform animates and the photo stays put. */
 .portrait[data-phase] .photo { animation: wipe 1.5s var(--ease) both }
 .portrait[data-phase] .photo img { animation: unwipe 1.5s var(--ease) both }
@@ -137,10 +137,10 @@ legend { font-weight: 600; font-size: .95rem; margin-bottom: 8px }
 .seg { display: flex; gap: 6px }
 .seg button, .switch button { flex: 1 0 auto; min-height: 44px; padding: 0 10px; font-size: .84rem; white-space: nowrap; background: var(--glass); color: var(--dim); border: 1px solid var(--line); border-radius: 99px }
 :is(.seg, .switch) button[aria-pressed='true'], .chip[aria-pressed='true'], .star[aria-pressed='true'] { background: var(--text); color: var(--ink); border-color: var(--text) }
-.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 10px }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 10px }
 .tile { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 4px; width: 100%; text-align: center; border-radius: 20px; padding: 4px }
 .tile:focus-visible { outline: 3px solid var(--open); outline-offset: 2px }
-.tile small { display: flex; justify-content: center; align-items: center; gap: 3px; font-size: .72rem; white-space: nowrap }
+.tile small { display: flex; justify-content: center; align-items: center; gap: 2px; font-size: .7rem; white-space: nowrap }
 .tile small .icon { color: var(--open) }
 main > * { flex-shrink: 0 }
 .person { display: grid; gap: 14px; text-align: center; justify-items: center }

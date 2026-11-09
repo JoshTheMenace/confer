@@ -3,7 +3,6 @@ import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { auth, hashToken, tokenLink, type Me as Session } from '../auth.js'
-import { embed } from '../common.js'
 import { openVault } from '../consent.js'
 import { contactFields, type Api, type Kind, type Me, type Profile } from '../contract.js'
 import { es, ix } from '../es.js'
@@ -69,7 +68,6 @@ export const me = new Hono<{ Variables: { me: Session } }>()
       es.index({ index: ix.profiles, id, document: { ...mine, interestEdits: 0, tokenHash: hashToken(token) } }),
       es.index(tokenLink(hashToken(token), { id, kind, tagId })),
     ])
-    void embed(profile.interests, 20_000).catch(() => {}) // ready before their first scan
     log.info({ profile: id, tagId, kind }, 'signup')
     return c.json({ token, me: { ...mine, id, contact, ...(photo && { photo }) } } satisfies Api['POST /api/me/signup']['res'])
   })
@@ -89,7 +87,6 @@ export const me = new Hono<{ Variables: { me: Session } }>()
         if (edits >= MAX_INTEREST_EDITS)
           return c.json({ error: `You have changed your interests ${MAX_INTEREST_EDITS} times, which is the limit. It stops anyone from swapping tags to work out what other people are into.` }, 409)
         interestEdits = edits + 1
-        void embed(profile.interests, 20_000).catch(() => {})
       }
     }
     // The conditional profile write goes first: if it loses a race, nothing else (contact, photo) is saved either.

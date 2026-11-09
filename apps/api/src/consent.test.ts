@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { autoShares, cardFor, fitOf, openVault, type Meeting, type Share } from './consent.js'
+import { allShares, autoShares, cardFor, fitOf, openVault, type Meeting, type Share } from './consent.js'
 import type { Common, ContactField, Profile } from './contract.js'
 import { es } from './es.js'
 
-vi.mock('./es.js', () => ({ es: { mget: vi.fn(), bulk: vi.fn() }, ix: new Proxy({}, { get: (_, name) => name }) }))
+vi.mock('./es.js', () => ({ es: { search: vi.fn(), mget: vi.fn(), bulk: vi.fn() }, ix: new Proxy({}, { get: (_, name) => name }) }))
 
 const person = (id: string, over: Partial<Profile> = {}): Profile => ({
   id, tagId: 1, kind: 'attendee', displayName: id, pronouns: 'she/her', approach: 'open', commPref: "I'm Deaf, text me",
@@ -18,6 +18,20 @@ const meeting = (scanner: string, scanned: string, at = '2026-11-09T10:00:00.000
 const share = (from: string, to: string, fields: ContactField[] = ['email']): Share => ({ from, to, fields, via: 'manual', at: '2026-11-09T11:00:00.000Z' })
 const vault = { email: 'ana@example.com', linkedin: 'in/ana', github: 'ana', photo: 'data:image/png;base64,AAAA' }
 const topics = ['interests', 'role', 'about', 'stuckOn'] as const
+
+test('allShares follows search_after beyond the first page', async () => {
+  const first = Array.from({ length: 1000 }, (_, i) => ({
+    sort: [`attendee-${i}`, 'booth'], _source: { from: `attendee-${i}`, to: 'booth', fields: ['email'], via: 'manual', at: '2026-11-09T11:00:00.000Z' },
+  }))
+  vi.mocked(es.search).mockResolvedValueOnce({ hits: { hits: first } } as any)
+    .mockResolvedValueOnce({ hits: { hits: [{ sort: ['attendee-1000', 'booth'], _source: { from: 'attendee-1000', to: 'booth', fields: ['email'], via: 'manual', at: '2026-11-09T11:00:00.000Z' } }] } } as any)
+
+  const found = await allShares({ term: { to: 'booth' } })
+
+  expect(found).toHaveLength(1001)
+  expect(es.search).toHaveBeenCalledTimes(2)
+  expect(vi.mocked(es.search).mock.calls[1][0]).toMatchObject({ search_after: ['attendee-999', 'booth'], sort: [{ from: 'asc' }, { to: 'asc' }] })
+})
 
 describe('cardFor: peers', () => {
   test('a peer gets the badge and nothing else', () => {

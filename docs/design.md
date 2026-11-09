@@ -13,8 +13,8 @@
 | Scan shows name, role, full interests | Scan shows first name, a **silhouette**, and **things in common** (never the full list) |
 | Contact opens on a mutual scan | **One-way Share**, any time, by either person; "Share back?" nudge; **Unshare** with a deletion receipt |
 | No photo | Optional selfie, seen only by people you shared with, deleted after the event |
-| Nobody says why they want your details | **Connection requests are the center of the app.** Anyone, a person or a booth, asks with a short note that says why. You see who is asking (a silhouette), why, and what you have in common, then pick **Share / Ignore / Mute** |
-| Booth scan creates a blanket consent request | Booth sees interests and fit, **no name**; its request carries a note **and an attachment** you get either way |
+| No way to talk without swapping details | **Text chat** inside every request. The first message is the reason; the other person gets a **message request** they can open if they want, answer, ignore or mute. Chat never reveals more than the card: sharing stays a separate tap. It is also the accessible way to talk in a loud hall. |
+| Booth scan creates a blanket consent request | Booth sees interests and fit, **no name**; sends a **request with a note and an attachment**; attendee gets the content either way and picks **Share / Ignore / Mute** |
 | Only the scanner keeps the meeting | Meeting lands in **both** people's list: that list is also the "who scanned me" log |
 | Exact tag overlap | Things in common = same tags **plus related tags** found with Elastic embeddings ("Tracing" ↔ "OpenTelemetry") |
 
@@ -34,7 +34,8 @@ Deferred to the roadmap (say so honestly, do not fake): private forwarding email
 - Searching for people only ever queries topic tags (`peer_semantic`), and only for attendees who turned on `discoverable`. What someone wrote about themselves or is stuck on is matched for booths and talks, never for another attendee's search.
 - A booth never receives a name unless `boothsSeeName` or the person shared. Booth totals are anonymous.
 - Contact and photo live in the `vault` index and are read only through an existing share (or by the owner). Every share, read and unshare writes a receipt carrying the trace id.
-- No PII in logs, span attributes, metric attributes or RUM events. Ids, kinds and counts only.
+- No PII in logs, span attributes, metric attributes or RUM events. Ids, kinds and counts only. Message text is PII.
+- A chat shows the other person through the same lens as a scan. Being in a conversation unlocks nothing: a booth still sees no name, a peer still sees a silhouette, until that person shares.
 
 ## The five-minute demo (everything is built for this)
 
@@ -43,9 +44,8 @@ Presented from a laptop on **Stage mode** (`#/stage`): two live phones side by s
 | Time | Beat | What the room sees |
 |---|---|---|
 | 0:00 | Hook | "Every badge scan today puts your email on a lead list." Paper badge held up. |
-| 0:20 | Meet | Left phone scans the badge. A silhouette springs up: first name, "3 things in common", one marked *related*. The other person touched nothing. |
-| 0:50 | Connect | Left phone taps Connect and sends one line on why. The right phone's inbox shows who is asking, why, and what they have in common. |
-| 1:10 | Share | Right phone taps Share. On the left, the silhouette fills in with the photo and the card appears. "Share back?" Then Unshare: the photo drains back to a silhouette and a receipt prints. |
+| 0:20 | Meet | Left phone scans the badge from a metre away. A silhouette springs up: first name, "3 things in common", one marked *related*. The other person touched nothing. |
+| 1:00 | Share | Right phone taps Share. On the left, the silhouette fills in with the photo and the card appears. "Share back?" Then Unshare: the photo drains back to a silhouette and a deletion receipt prints. |
 | 1:40 | Booth | Booth phone scans the badge: interests and fit, no name. Sends a note plus a benchmark guide. The attendee's inbox lights up: content delivered, Share / Ignore / Mute. They share. |
 | 2:30 | Sponsor value | Booth dashboard: leads that said yes, share rate per pitch, anonymous prospects who match. |
 | 3:00 | Discover | "I'm stuck on tracing across 200 services" finds talks, booths and people (keyword + semantic + rerank on Elasticsearch). |
@@ -57,7 +57,7 @@ Presented from a laptop on **Stage mode** (`#/stage`): two live phones side by s
 - **One `App` per session slot.** Standalone: one App, hash routes. Stage mode: two Apps in one page, each with its own token and in-memory route, so two personas run side by side. No iframes.
 - **Live:** People and Inbox poll every 2 seconds while visible, so a share or request appears on the other phone without a reload.
 - **Mock mode** (`?mock`): the whole app runs on in-memory fixtures typed by the contract. It is how the UI is designed without a backend and the fallback if the venue Wi-Fi dies.
-- Attendee tabs: **Scan, People, Inbox, Discover, Me** (badge and settings). The **Inbox is the heart**: requests to you (who, why, in common), requests you sent and their status, and receipts. Booth tabs: **Scan, Leads, Booth**. Organizer: **Pulse**.
+- Attendee tabs: **Scan, People, Inbox, Discover, Me** (badge and settings). Booth tabs: **Scan, Leads, Booth**. Organizer: **Pulse**.
 - Onboarding is three short steps (You, Interests, Sharing and selfie), about 90 seconds.
 
 ## Signature moments (motion)
@@ -65,7 +65,7 @@ Presented from a laptop on **Stage mode** (`#/stage`): two live phones side by s
 1. **Catch:** viewfinder locks on the tag, a ripple, the silhouette card springs up from where the tag was; a group catch fans the cards.
 2. **Things in common:** the count ticks up and chips pop in one by one; *related* pairs draw a link between the two tags.
 3. **Reveal:** on Share, the silhouette fills in with the photo (the hero moment). Unshare runs it backwards and prints a receipt.
-4. **Request:** a note slides into the inbox saying who wants to connect and why (a booth's also carries its attachment); answering it resolves the card.
+4. **Request:** a booth's note slides into the inbox with its attachment; answering it resolves the card.
 5. **Pulse:** counters roll and the chart grows as the demo happens.
 
 Everything respects `prefers-reduced-motion` (cross-fades instead), keeps WCAG AA contrast, visible focus, 44px targets, never uses color alone, and announces changes to screen readers. Silhouettes are neutral: no gendered shapes or skin cues, distinct per person by a generated gradient and pattern.

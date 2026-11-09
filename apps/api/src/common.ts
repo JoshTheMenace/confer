@@ -1,28 +1,23 @@
 import type { Common } from './contract.js'
-import { es, ix } from './es.js'
+import { es } from './es.js'
 import { log } from './telemetry.js'
 
-const MODEL = '.jina-embeddings-v5-text-small', BATCH = 16 // the endpoint refuses more than 16 inputs per call
-// Tuned live on bare tags: "OpenTelemetry"~"Distributed tracing" scores 0.49 and "eBPF"~"Cilium" 0.39; "Kubernetes"~"React" 0.36.
-const THRESHOLD = 0.38
+// Is "OpenTelemetry" the same conversation as "Distributed tracing"? A cross-encoder (Elastic inference reranker) reads the
+// two tags together and scores them. Measured live on bare tags: related pairs score 0.09 to 0.25, while unrelated ones
+// (React and Rust, Prometheus and Argo CD) stay under 0.09. Embedding cosine could not tell those apart, so this is a reranker.
+const MODEL = process.env.ELASTIC_RERANKER ?? '.jina-reranker-v3', THRESHOLD = 0.09
 const key = (tag: string) => tag.trim().toLowerCase()
-const vectors = new Map<string, number[]>() // in-process: the same tags repeat all day and a tag's vector never changes
+const pair = (mine: string, theirs: string) => `${key(mine)}|${key(theirs)}`
+const scores = new Map<string, number>() // in-process: the same tag pairs repeat all day and a pair's score never changes
 
-function cosine(a?: number[], b?: number[]) {
-  if (!a || !b) return 0
-  let dot = 0, aa = 0, bb = 0
-  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; aa += a[i] ** 2; bb += b[i] ** 2 }
-  return dot / Math.sqrt(aa * bb)
-}
-
-/** Pure: same tags first (any case), then the closest related pairs. A tag is used once; at most 5 results. */
-export function match(mine: string[], theirs: string[], vec: Map<string, number[]> = new Map(), threshold = THRESHOLD): Common[] {
+/** Pure: same tags first (any case), then the best-scoring related pairs. A tag is used once; at most 5 results. */
+export function match(mine: string[], theirs: string[], score: (mine: string, theirs: string) => number = () => 0, threshold = THRESHOLD): Common[] {
   const common: Common[] = mine.flatMap((m) => {
     const t = theirs.find((t) => key(t) === key(m))
     return t ? [{ kind: 'same' as const, mine: m, theirs: t }] : []
   })
   const used = new Set(common.map((c) => key(c.mine)))
-  const pairs = mine.flatMap((m) => theirs.map((t) => ({ mine: m, theirs: t, score: cosine(vec.get(key(m)), vec.get(key(t))) })))
+  const pairs = mine.flatMap((m) => theirs.map((t) => ({ mine: m, theirs: t, score: score(m, t) })))
     .filter((p) => p.score >= threshold).sort((a, b) => b.score - a.score)
   for (const p of pairs) {
     if (used.has(key(p.mine)) || used.has(key(p.theirs))) continue
@@ -32,25 +27,23 @@ export function match(mine: string[], theirs: string[], vec: Map<string, number[
   return common.slice(0, 5)
 }
 
-/** Embeds the tags not seen before. Also called at signup and boot, so a scan rarely waits on inference. */
-export async function embed(tags: string[], timeoutMs = 1500) {
-  // Cached by lower-case key, but embedded as typed: the model reads "eBPF" better than "ebpf".
-  const need = [...new Map(tags.map((t) => [key(t), t.trim()])).values()].filter((t) => t && !vectors.has(key(t)))
-  const batches = Array.from({ length: Math.ceil(need.length / BATCH) }, (_, i) => need.slice(i * BATCH, (i + 1) * BATCH))
-  await Promise.all(batches.map(async (input) => {
-    const res = await es.inference.textEmbedding({ inference_id: MODEL, input }, { requestTimeout: timeoutMs, maxRetries: 0 })
-    res?.text_embedding?.forEach((e, i) => vectors.set(key(input[i]), e.embedding))
+/** Scores the pairs not seen before: one rerank call per tag of mine, all at once, each tag sent as typed. */
+async function scorePairs(mine: string[], theirs: string[], timeoutMs: number) {
+  await Promise.all(mine.map(async (m) => {
+    const input = theirs.filter((t) => !scores.has(pair(m, t)))
+    if (!input.length) return
+    const res = await es.inference.rerank({ inference_id: MODEL, query: m, input }, { requestTimeout: timeoutMs, maxRetries: 0 })
+    res.rerank.forEach((r) => scores.set(pair(m, input[r.index]), r.relevance_score))
   }))
 }
 
-export async function commonOf(mine: string[] = [], theirs: string[] = []): Promise<Common[]> {
+export async function commonOf(mine: string[] = [], theirs: string[] = [], timeoutMs = 1500): Promise<Common[]> {
+  // Only tags without an exact match on the other side can be "related" to something.
+  const rest = (a: string[], b: string[]) => [...new Map(a.filter((t) => t.trim() && !b.some((o) => key(o) === key(t))).map((t) => [key(t), t.trim()])).values()]
   // Too slow or down: fall back to same tags only rather than hold up a scan.
-  await embed([...mine, ...theirs]).catch((err) => log.warn({ err: err?.name }, 'embeddings unavailable, matching same tags only'))
-  return match(mine, theirs, vectors)
+  await scorePairs(rest(mine, theirs), rest(theirs, mine), timeoutMs).catch((err) => log.warn({ err: err?.name }, 'reranker unavailable, matching same tags only'))
+  return match(mine, theirs, (m, t) => scores.get(pair(m, t)) ?? 0)
 }
 
-/** At boot: embed every tag already in use (the first inference call after idle takes about 5s). */
-export async function warm() {
-  const res = await es.search({ index: ix.profiles, size: 0, aggs: { tags: { terms: { field: 'interests', size: 1000 } } } })
-  await embed(((res.aggregations?.tags as { buckets?: { key: string }[] })?.buckets ?? []).map((b) => b.key), 20_000)
-}
+/** At boot: wake the inference endpoint, because its first call after idle takes several seconds. */
+export const warm = () => es.inference.rerank({ inference_id: MODEL, query: 'OpenTelemetry', input: ['Distributed tracing'] }, { requestTimeout: 20_000 })

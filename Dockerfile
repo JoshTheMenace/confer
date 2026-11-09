@@ -9,7 +9,7 @@ WORKDIR /app
 COPY --from=build /out/api .
 USER node
 EXPOSE 3000
-CMD ["node", "--import", "@opentelemetry/auto-instrumentations-node/register", "dist/index.js"]
+CMD ["node", "--import", "./dist/otel.js", "dist/index.js"]
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine AS web
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf

@@ -1,0 +1,10 @@
+# Keep one copy of each service up during node drains and rollouts (Radar audit: missingPDB).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: dex-api }
+spec: { minAvailable: 1, selector: { matchLabels: { app: dex-api } } }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: dex-web }
+spec: { minAvailable: 1, selector: { matchLabels: { app: dex-web } } }

@@ -9,9 +9,13 @@ spec:
       template:
         spec:
           restartPolicy: OnFailure
+          automountServiceAccountToken: false
+          securityContext: { runAsNonRoot: true, runAsUser: 1000, seccompProfile: { type: RuntimeDefault } }
           containers:
             - name: expirer
               image: dex-api
+              securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+              resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { cpu: 500m, memory: 256Mi } }
               command: ["node", "--import", "./dist/otel.js", "dist/expire.js"]
               envFrom: [{ secretRef: { name: dex-secrets } }]
               env: [{ name: OTEL_SERVICE_NAME, value: dex-consent-expirer }]

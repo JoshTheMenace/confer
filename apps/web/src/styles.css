@@ -116,7 +116,8 @@ legend { font-weight: 900; padding: 0 6px }
 .catch::before { content: ''; position: absolute; left: 14px; top: 14px; width: 120px; height: 120px; border: 8px solid var(--cobalt); border-radius: 50%; opacity: 0; pointer-events: none }
 .who { display: grid; grid-template-columns: 120px 1fr; gap: 14px; align-items: center }
 .who > div { display: grid; gap: 6px; justify-items: start }
-.who h2 { font-size: 40px }
+.who h2 { font-size: 40px; overflow-wrap: anywhere }
+.group .catch { gap: 10px; padding: 10px }
 .group .who { grid-template-columns: 72px 1fr }
 .group .who h2 { font-size: 28px }
 

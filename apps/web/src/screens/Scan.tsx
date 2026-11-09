@@ -27,7 +27,7 @@ export function Scan() {
               <div className="who">
                 <Portrait card={c} />
                 <div>
-                  <h2>{c.name ?? 'Attendee'}</h2>
+                  <h2>{c.name ?? 'Visitor'}</h2>
                   {c.pronouns && <p>{c.pronouns}</p>}
                   <ApproachBadge approach={c.approach} />
                   {c.commPref && <p className="muted">Prefers: {c.commPref}</p>}

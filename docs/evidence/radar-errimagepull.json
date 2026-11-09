@@ -1,0 +1,116 @@
+{
+  "agent": "claude",
+  "diagnosis": {
+    "rootCause": "At 19:00:01Z the container image was changed from `ghcr.io/joshthemenace/dex-api:latest` to `dex-api:dev`. A name with no registry defaults to Docker Hub, where `library/dex-api` doesn't exist, so the new pod can't pull it. The old pods can't fall back either, because ghcr returns 403 to anonymous pulls and the Deployment has no `imagePullSecrets`.",
+    "summary": "dex-api has no running pods: neither its new image dex-api:dev nor the old ghcr image can be pulled.",
+    "certainty": "likely",
+    "unresolved": [
+      "Whether dex-api:dev is meant to be a locally built image loaded into a kind node: confirm with `kind get clusters` and `docker exec dex-control-plane crictl images | grep dex-api`."
+    ],
+    "steps": [
+      {
+        "text": "Check whether this is a kind cluster with the image loaded. Run `kind get clusters` and `docker exec dex-control-plane crictl images | grep dex`. If `dex-api:dev` is missing from the node, the next step applies.",
+        "kind": "verify"
+      },
+      {
+        "text": "Load the local images into the kind node. Run `kind load docker-image dex-api:dev dex-web:dev --name dex`, then `kubectl -n dex rollout restart deploy/dex-api deploy/dex-web`. Also set `imagePullPolicy: IfNotPresent` explicitly so the node never tries Docker Hub.",
+        "kind": "mitigate",
+        "precondition": "Cluster is kind and dex-api:dev was built locally"
+      },
+      {
+        "text": "Otherwise, use the ghcr image with a pull secret. Run `kubectl -n dex create secret docker-registry ghcr --docker-server=ghcr.io --docker-username=joshthemenace --docker-password=\u003cPAT with read:packages\u003e`. Add `imagePullSecrets: [{name: ghcr}]` to the pod spec and set the image back to `ghcr.io/joshthemenace/dex-api:latest`.",
+        "kind": "mitigate",
+        "precondition": "The intended image lives in the private ghcr repo"
+      }
+    ],
+    "report": "I found the cause: both images dex-api uses fail to download, so its app has never started. Think of it as asking for a package by a nickname that only your local post office knows. The other office can't find it, and the backup address (ghcr) refuses to deliver without a key.\n\n[[radar:evidence=0]]\n\nAt 19:00:01Z, in the same second the Deployment was created, its image changed from `ghcr.io/joshthemenace/dex-api:latest` to `dex-api:dev`. An image name with no registry in front means Docker Hub (`docker.io/library/dex-api:dev`), and that repository doesn't exist. The two pods left over from the first version can't take over either: ghcr returns **403 Forbidden** to an anonymous pull, and the pod spec has no `imagePullSecrets` (the stored login Kubernetes uses to pull from a private registry).\n\n[[radar:evidence=1|compact]]\n\nNo container has started, so this isn't an app bug. The logs only say the container is waiting on the image pull. The sibling Deployment dex-web fails the same way (`dex-web:dev` plus ghcr `:latest`), so the same fix applies to both.\n\n[[radar:evidence=2|compact]]\n\n**What I couldn't confirm:** a `:dev` image with no registry usually means an image built on your machine for a local cluster. The node name `dex-control-plane` suggests a kind cluster (Kubernetes running inside Docker), and in kind a locally built image has to be copied onto the node before pods can use it. That's an inference from the name, so I didn't recommend a single fix. Run the verify step first. If the image isn't on the node, load it with `kind load` (step 2). If the real image is the private ghcr one, add a pull secret instead (step 3).\n\nThe audit findings (privilege escalation, auto-mounted service account token) are hardening issues and have nothing to do with this outage.",
+    "notes": "**Evidence ledger**\n- `diagnose` dex/dex-api (ev_…cxjir76e33…): the image was changed from `ghcr.io/joshthemenace/dex-api:latest` to `dex-api:dev` at 19:00:01Z, in the same second the Deployment was created. Pulling `dex-api:dev` fails on Docker Hub (`docker.io/library/dex-api:dev`, repository not found or access denied). Pulling the ghcr image fails with a 403 on the anonymous token request. The pod template has no `imagePullSecrets`. It does not show which images are cached on the node or the template's `imagePullPolicy`.\n- `list_resources` pods in dex (ev_…lpz5fdunisa…): one dex-api pod is on `dex-api:dev` and two old-revision pods are on the ghcr `:latest` image, all in ImagePullBackOff on node `dex-control-plane`. The sibling Deployment dex-web shows the same pattern. Point-in-time, dex namespace only.\n- Alternative: the app crashes on start. Ruled out because no container has started yet (every log read reports \"waiting to start: trying and failing to pull image\").\n- Alternative: the cluster is kind and the local image was never loaded into the node. This is inferred from the node name and is untested.",
+    "rootCauseEvidence": {
+      "status": "linked",
+      "refs": [
+        "ev_vu37q7upahwlae4kmdqqyrnykx_cxjir76e33mfccfdbw7cqutx3x"
+      ]
+    },
+    "evidence": [
+      {
+        "status": "linked",
+        "ref": "ev_vu37q7upahwlae4kmdqqyrnykx_cxjir76e33mfccfdbw7cqutx3x",
+        "role": "cause",
+        "claim": "Image changed to dex-api:dev, which resolves to docker.io/library/dex-api:dev and is denied.",
+        "gap": "does not show images cached on the node or imagePullPolicy",
+        "subject": {
+          "group": "apps",
+          "kind": "Deployment",
+          "namespace": "dex",
+          "name": "dex-api",
+          "observation": "changes"
+        }
+      },
+      {
+        "status": "linked",
+        "ref": "ev_vu37q7upahwlae4kmdqqyrnykx_cxjir76e33mfccfdbw7cqutx3x",
+        "role": "symptom",
+        "claim": "Pull failures for both images: Docker Hub denied and ghcr 403 Forbidden.",
+        "gap": "capped event sample from the last ~2 minutes",
+        "subject": {
+          "group": "apps",
+          "kind": "Deployment",
+          "namespace": "dex",
+          "name": "dex-api",
+          "observation": "events"
+        }
+      },
+      {
+        "status": "linked",
+        "ref": "ev_vu37q7upahwlae4kmdqqyrnykx_lpz5fdunisa2p4p35bwmuxvndv",
+        "role": "context",
+        "claim": "One pod on dex-api:dev and two on ghcr :latest, all ImagePullBackOff; dex-web fails the same way.",
+        "gap": "dex namespace only, point-in-time",
+        "subject": {
+          "group": "",
+          "kind": "Pod",
+          "namespace": "dex",
+          "name": "dex-api-6cf4dd4d48-jf5lw",
+          "observation": "resource"
+        }
+      },
+      {
+        "status": "linked",
+        "ref": "ev_vu37q7upahwlae4kmdqqyrnykx_cxjir76e33mfccfdbw7cqutx3x",
+        "role": "rules_out",
+        "claim": "No container ever started, so there is no app crash; logs report waiting on image pull.",
+        "gap": "says nothing about whether the app would run once pulled",
+        "subject": {
+          "group": "",
+          "kind": "Pod",
+          "namespace": "dex",
+          "name": "dex-api-6cf4dd4d48-jf5lw",
+          "container": "api",
+          "stream": "current",
+          "observation": "logs"
+        }
+      }
+    ],
+    "ruledOut": [
+      {
+        "hypothesis": "Application crash at startup",
+        "evidenceIndex": 3
+      }
+    ],
+    "remediation": [
+      "Check whether this is a kind cluster with the image loaded. Run `kind get clusters` and `docker exec dex-control-plane crictl images | grep dex`. If `dex-api:dev` is missing from the node, the next step applies.",
+      "Load the local images into the kind node. Run `kind load docker-image dex-api:dev dex-web:dev --name dex`, then `kubectl -n dex rollout restart deploy/dex-api deploy/dex-web`. Also set `imagePullPolicy: IfNotPresent` explicitly so the node never tries Docker Hub.",
+      "Otherwise, use the ghcr image with a pull secret. Run `kubectl -n dex create secret docker-registry ghcr --docker-server=ghcr.io --docker-username=joshthemenace --docker-password=\u003cPAT with read:packages\u003e`. Add `imagePullSecrets: [{name: ghcr}]` to the pod spec and set the image back to `ghcr.io/joshthemenace/dex-api:latest`."
+    ],
+    "confidence": 0.85,
+    "costUsd": 0.36634019999999995,
+    "turns": 3,
+    "sessionId": "ab65525b-7320-41ab-a390-4626185d76c9"
+  },
+  "group": "apps",
+  "kind": "Deployment",
+  "name": "dex-api",
+  "namespace": "dex",
+  "radar_url": "http://localhost:9280/?ai-run=run-dd77c20ed8",
+  "run": "run-dd77c20ed8"
+}

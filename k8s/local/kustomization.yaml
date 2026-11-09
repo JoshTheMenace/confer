@@ -1,0 +1,12 @@
+# Local kind cluster: images are built on this machine and loaded with `kind load docker-image`.
+resources: [../base]
+images:
+  - { name: ghcr.io/joshthemenace/dex-api, newName: dex-api, newTag: dev }
+  - { name: ghcr.io/joshthemenace/dex-web, newName: dex-web, newTag: dev }
+patches:
+  - target: { kind: Deployment }
+    patch: |-
+      - { op: add, path: /spec/template/spec/containers/0/imagePullPolicy, value: IfNotPresent }
+  - target: { kind: CronJob }
+    patch: |-
+      - { op: add, path: /spec/jobTemplate/spec/template/spec/containers/0/imagePullPolicy, value: IfNotPresent }

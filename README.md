@@ -29,9 +29,9 @@ pnpm dev               # web on :5173, api on :3000
 ## Deploy to Kubernetes
 
 ```sh
-kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/base/namespace.yaml
 kubectl -n dex create secret generic dex-secrets --from-env-file=.env
-kubectl apply -k k8s
+kubectl apply -k k8s/base    # or k8s/local for a kind cluster with locally built images
 ```
 
 ## AI disclosure

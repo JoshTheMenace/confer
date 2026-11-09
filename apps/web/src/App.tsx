@@ -132,7 +132,7 @@ export function Stage() {
         <ol className="story">
           <li><b>Scan</b> a badge. You get a silhouette and what you have in common.</li>
           <li><b>Connect</b> with one line saying why. They decide.</li>
-          <li><b>Share</b> only when you tap. <b>Unshare</b> takes it back.</li>
+          <li><b>Share</b> only when you tap. <b>Unshare</b> removes it, with a receipt.</li>
         </ol>
         <section className="strip" aria-label={isMock ? 'Event numbers, sample data' : 'Event numbers, live'}>
           <p className="live">{isMock ? 'Sample data' : 'Live'}</p>

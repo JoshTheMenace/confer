@@ -120,7 +120,7 @@ details { border-top: 1.5px dashed var(--line); padding-top: 8px } summary { min
 /* The conversation: openers, the request, the chat, and the toast that says out loud what the live region announces. */
 ::placeholder { color: var(--soft); opacity: 1 } textarea { resize: vertical } .icon { display: block; flex: none }
 .app { position: relative }
-.toast { position: absolute; left: 12px; right: 12px; top: 52px; z-index: 5; padding: 10px 14px; border-radius: 12px; background: var(--ink); color: var(--bg); font-weight: 700; box-shadow: var(--shadow); opacity: 0; transform: translateY(-12px); pointer-events: none; transition: opacity .25s, transform .25s }
+.toast { position: absolute; left: 8px; right: 8px; top: 4px; z-index: 5; padding: 10px 14px; border-radius: 12px; background: var(--ink); color: var(--bg); font-weight: 700; box-shadow: var(--shadow); opacity: 0; transform: translateY(-12px); pointer-events: none; transition: opacity .25s, transform .25s }
 .toast.on { opacity: 1; transform: none }
 .connect { display: flex; flex-direction: column; gap: 8px; border-top: 1.5px dashed var(--line); padding-top: 10px } .openers { display: flex; flex-direction: column; gap: 6px }
 .opener { min-height: 44px; padding: 4px 10px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: .85rem; line-height: 1.25; font-weight: 600; text-align: left; cursor: pointer }

@@ -62,7 +62,7 @@ function Sharing({ draft, set }: Step) {
   const [problem, setProblem] = useState<string>()
   return (
     <>
-      <p className="note">People you meet see a silhouette and what you have in common. <strong>Share</strong> hands over only what you tick here, plus your selfie. <strong>Unshare</strong> takes it back.</p>
+      <p className="note">People you meet see a silhouette and what you have in common. <strong>Share</strong> hands over only what you tick here, plus your selfie. Email means your real address. <strong>Unshare</strong> removes it from Confer for that person; it cannot recall a copy they already made.</p>
       <label>Email<input type="email" autoComplete="email" value={draft.contact.email ?? ''} onChange={(e) => set({ contact: { ...draft.contact, email: e.target.value } })} /></label>
       <label>LinkedIn <small>optional</small><input value={draft.contact.linkedin ?? ''} onChange={(e) => set({ contact: { ...draft.contact, linkedin: e.target.value } })} /></label>
       <label>GitHub <small>optional</small><input value={draft.contact.github ?? ''} onChange={(e) => set({ contact: { ...draft.contact, github: e.target.value } })} /></label>
@@ -98,7 +98,7 @@ export const How = () => (
   <ol className="how">
     <li><b>Scan a badge.</b> You both see a silhouette and what you have in common.</li>
     <li><b>Tap Share</b> when you want to. Your card and photo go to that one person.</li>
-    <li><b>Unshare any time.</b> It is deleted and you get a receipt.</li>
+    <li><b>Unshare any time.</b> Confer deletes their copy and gives you a receipt.</li>
   </ol>
 )
 

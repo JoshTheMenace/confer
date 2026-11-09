@@ -1,6 +1,7 @@
 import { type CSSProperties, type FormEvent, useState } from 'react'
 import type { Pulse, Visitor } from '../../../api/src/contract'
 import { call, type Session } from '../api'
+import { httpsUrl } from '../links'
 import { ContactCard, Count, listFields, Portrait, Problem, time, useAct, useApp, usePoll } from '../ui'
 
 const pct = (n: number) => `${Math.round(n * 100)}%`
@@ -159,7 +160,7 @@ export function PulseScreen() {
               <>
                 <div className="stats"><Stat label="p95 ms" value={h.p95Ms ?? 0} /><Stat label="errors" value={h.errorRate ?? 0} format={(n) => `${(n * 100).toFixed(1)}%`} /><Stat label="requests/min" value={h.requestsPerMin ?? 0} /></div>
                 {h.slo && <p className={`slo ${h.slo.ok ? 'ok' : 'bad'}`}><span aria-hidden>{h.slo.ok ? '✓' : '!'}</span> {h.slo.name}: {(h.slo.current * 100).toFixed(1)}% (target {(h.slo.target * 100).toFixed(0)}%), {h.slo.ok ? 'within target' : 'below target'}</p>}
-                {h.dashboardUrl && <a className="btn" href={h.dashboardUrl} target="_blank" rel="noreferrer">Open the Dash0 dashboard</a>}
+                {httpsUrl(h.dashboardUrl) && <a className="btn" href={httpsUrl(h.dashboardUrl)} target="_blank" rel="noreferrer">Open the Dash0 dashboard</a>}
               </>
             )}
           </section>

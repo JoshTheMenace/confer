@@ -4,7 +4,7 @@
 import { notionists } from '@dicebear/collection'
 import { createAvatar } from '@dicebear/core'
 import { hashToken } from './auth.js'
-import { commonOf, embed } from './common.js'
+import { commonOf } from './common.js'
 import { expiresAt, pairId, swap } from './consent.js'
 import type { Common, ContactField } from './contract.js'
 import { es, ensureIndices, ix } from './es.js'
@@ -87,13 +87,12 @@ const [amara, diego] = attendees, elastic = booths[0]
 
 // History spread over the last 30 minutes, so lists, booth stats and the organizer pulse are alive.
 // It never includes Amara meeting Diego, or any booth scanning, asking or being muted by either of them: the demo does that live.
-await embed([...attendees, ...booths].flatMap((p) => p.interests), 30_000).catch(() => console.warn('Embeddings unavailable: seeding same-tag matches only'))
 const now = Date.now(), ago = (minutes: number) => new Date(now - minutes * 60_000).toISOString()
 const meetings = new Map<string, { scanner: Seeded; scanned: Seeded; kind: string; source: string; at: string; common: Common[] }>()
 const meet = async (scanner: Seeded, scanned: Seeded, minutes: number) => {
   const kind = scanner.kind === 'sponsor' || scanned.kind === 'sponsor' ? 'booth' : 'peer'
   const reverse = meetings.get(pairId(scanned.id, scanner.id))
-  const common = reverse ? swap(reverse.common) : await commonOf(scanner.interests, scanned.interests)
+  const common = reverse ? swap(reverse.common) : await commonOf(scanner.interests, scanned.interests, 20_000)
   meetings.set(pairId(scanner.id, scanned.id), { scanner, scanned, kind, source: minutes % 3 ? 'camera' : 'manual', at: ago(minutes), common })
 }
 for (let k = 0; k < 46; k++) {
@@ -112,7 +111,7 @@ const requests = [
 ]
 const whys = await Promise.all(requests.map(async ({ booth, attendee }) => {
   const meeting = meetings.get(pairId(booth.id, attendee.id))
-  return meeting ? swap(meeting.common) : commonOf(attendee.interests, booth.interests)
+  return meeting ? swap(meeting.common) : commonOf(attendee.interests, booth.interests, 20_000)
 }))
 const mutes = requests.filter((r) => r.status === 'ignored').slice(0, 3)
 const shares = [
@@ -152,7 +151,7 @@ const res = await es.bulk({
 if (res.errors) throw new Error(`seed failed: ${res.items.filter((it) => it.index?.error).length} bulk errors`)
 
 // The demo depends on these, so a reset that breaks one fails loudly instead of on stage.
-const peers = await commonOf(amara.interests, diego.interests), booth = await commonOf(elastic.interests, amara.interests)
+const peers = await commonOf(amara.interests, diego.interests, 20_000), booth = await commonOf(elastic.interests, amara.interests, 20_000)
 const involves = (...ids: string[]) => [...meetings.keys()].some((id) => id === pairId(ids[0], ids[1]) || id === pairId(ids[1], ids[0]))
 const invariants = {
   'Amara and Diego have not met': !involves(amara.id, diego.id),

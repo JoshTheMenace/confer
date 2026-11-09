@@ -48,12 +48,15 @@ export function ChatScreen({ id }: { id: string }) {
       </header>
       {t.attachment && <AttachmentCard attachment={t.attachment} />}
       <Problem error={error} />
-      <ol className="messages" role="log" aria-live="polite" aria-label={`Messages with ${name}`}>
+      {/* The live region wraps the list, so the list keeps its items and new messages are still announced. */}
+      <div role="log" aria-live="polite" aria-label={`Messages with ${name}`}>
+      <ol className="messages">
         {messages.map((m) => (
           <li key={m.id} className={`msg ${m.from}`}><small>{m.from === 'me' ? 'You' : name} · {time(m.at)}</small><p>{m.text}</p></li>
         ))}
         <li ref={end} aria-hidden />
       </ol>
+      </div>
       {waiting ? <p className="note">Request sent. You can write again when {name} answers.</p> : (
         <form className="paper send" onSubmit={send}>
           <div className="row">

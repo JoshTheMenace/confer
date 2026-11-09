@@ -104,8 +104,8 @@ export function Count({ value, format = (n: number) => String(Math.round(n)) }: 
 export function CommonList({ common, them = 'Them' }: { common: Common[]; them?: string }) {
   if (!common.length) return <p className="muted">Nothing in common yet. Say hi anyway.</p>
   return (
-    <section className="common" aria-label="Things in common">
-      <h3><Count value={common.length} /> {common.length === 1 ? 'thing' : 'things'} in common</h3>
+    <section className="common" aria-label={`Things in common with ${them}`}>
+      <h2><Count value={common.length} /> {common.length === 1 ? 'thing' : 'things'} in common</h2>
       <ul>
         {common.map((c, i) => (
           <li key={c.mine + c.theirs} style={{ '--i': i } as CSSProperties} className={c.kind}>

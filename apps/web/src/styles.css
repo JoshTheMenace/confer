@@ -77,7 +77,7 @@ input:not([type='checkbox'], [type='radio']), textarea { display: block; width: 
 .common li { display: flex; align-items: center; min-width: 0; max-width: 100%; animation: pop .45s var(--spring) both; animation-delay: calc(.35s + var(--i) * .16s) }
 .common li.same .chip { flex-direction: row; gap: 6px } .common li.same .chip::before { content: '✓' }
 .common li.related { flex-basis: 100%; display: grid; grid-template-columns: auto minmax(74px, 1fr) auto; background: var(--rel-bg); border: 1px solid var(--rel-line); border-radius: 4px } .common li.related .chip { background: none; border: 0; padding: 4px 8px; font-size: .9rem }
-.common h3 { margin-bottom: 4px; display: flex; align-items: baseline; gap: 6px } .common .count { color: var(--accent); font-size: 1.8rem; line-height: 1; letter-spacing: 0 }
+.common h2 { font-size: .9rem; line-height: inherit; letter-spacing: .13em; text-transform: uppercase; color: inherit; margin-bottom: 4px; display: flex; align-items: baseline; gap: 6px } .common .count { color: var(--accent); font-size: 1.8rem; line-height: 1; letter-spacing: 0 }
 .link { position: relative; flex: 1 0 80px; text-align: center; align-self: stretch; display: grid; place-items: center }
 .link i { position: absolute; left: 0; right: 0; top: 50%; border-top: 2px dashed var(--rel-line); transform-origin: left; animation: draw .5s ease-out both; animation-delay: calc(.7s + var(--i) * .16s) }
 .link em { position: relative; background: var(--rel-bg); color: var(--rel-ink); font-style: normal; font-weight: 700; font-size: .85rem; letter-spacing: .06em; text-transform: uppercase; padding: 0 3px }
@@ -90,7 +90,7 @@ input:not([type='checkbox'], [type='radio']), textarea { display: block; width: 
 .portrait.on .photo { clip-path: inset(0) }
 .portrait.frozen .photo { transition: none; clip-path: inset(calc((1 - var(--p)) * 100%) 0 0 0) }
 .stamp { position: absolute; right: 12px; top: 30px; rotate: -6deg; padding: 4px 10px; border-radius: 4px; background: var(--pink); color: #fff; box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--pink); font-weight: 700; font-size: .85rem; letter-spacing: .12em; text-transform: uppercase; animation: thunk .4s .9s cubic-bezier(.3, 1.6, .5, 1) both }
-.contact div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 12px; padding: 8px 0; border-top: 1px solid var(--line) } .contact dt { color: var(--soft) } .contact dd { margin: 0; font-weight: 700; overflow-wrap: anywhere }
+.contact div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 12px; padding: 8px 0; border-top: 1px solid var(--line) } .contact dt { color: var(--soft) } .contact dd { margin: 0; font-weight: 700; overflow-wrap: anywhere } .contact div { align-items: center } .contact a { display: inline-flex; align-items: center; min-height: 44px }
 
 .progress { font-size: 1.15rem } .progress b { font-size: 1.5rem }
 .meter { display: flex; gap: 4px } .meter i { flex: 1; max-width: 28px; height: 10px; border-radius: 2px; border: 1.5px solid var(--solid) } .meter i.on { background: var(--mark); border-color: var(--mark) }
@@ -181,7 +181,7 @@ details { border-top: 1px solid var(--line); padding-top: 8px } summary { min-he
 .switch { display: flex; gap: 4px } .switch button { min-height: 44px; padding: 0 8px; border-radius: 4px; border: 2px solid #fff; background: transparent; color: #fff; font: inherit; font-weight: 700; font-size: 14px; letter-spacing: .05em; text-transform: uppercase; cursor: pointer } .switch [aria-pressed='true'] { background: var(--yellow); border-color: var(--yellow); color: #212326 }
 .phone { width: 390px; flex: 1; min-height: 0; border: 9px solid var(--night); border-radius: 30px; overflow: hidden; background: var(--bg); color: var(--ink); box-shadow: 0 18px 40px #030e2873 } .phone .app { height: 100% } .phone .onboarding { min-height: 0; height: 100%; overflow-y: auto }
 /* On Stage, Next and Get my badge stay in reach while the form scrolls. */
-.phone .onboarding form > .row.end { position: sticky; bottom: 0; margin: 0 -8px; padding: 8px; background: var(--paper) }
+.phone .onboarding form > .row.end { position: sticky; bottom: -28px; margin: 0 -8px; padding: 8px; background: var(--paper) }
 /* A smaller projector or laptop: narrower phones and a two-column strip, so the header keeps its room. */
 @media (min-width: 1101px) and (max-width: 1340px) { .stage { grid-template-columns: minmax(0, 1fr) 350px 350px; gap: 0 20px; padding: 14px 24px } .phone { width: 100% } .phone-wrap { min-width: 0; align-items: stretch } .switch { justify-content: center } .switch button { padding: 0 5px; letter-spacing: 0 } .stage > header { gap: 8px; padding: 6px 0 } .stage > header .wordmark { font-size: min(6.4vw, 84px) } .tagline { letter-spacing: .12em } .story li { padding: 5px 0 } .strip { gap: 6px } .strip .stat { padding: 6px 10px } }
 @media (max-width: 1100px) { .stage { grid-template-columns: 1fr 1fr; grid-template-rows: auto 760px; height: auto; overflow: visible } .stage > header { grid-column: 1 / -1 } .phone { width: 100% } }
@@ -204,8 +204,8 @@ details { border-top: 1px solid var(--line); padding-top: 8px } summary { min-he
 }
 
 /* Reduced motion: every moment becomes a short cross-fade. Nothing spins, swings, slides or glides. */
-.rm *, .rm *::before { animation-name: fade !important; animation-duration: .3s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; animation-timing-function: linear !important; scroll-behavior: auto !important }
-.rm .photo { clip-path: none; opacity: 0; transition: opacity .5s linear } .rm .portrait.on .photo { opacity: 1 }
-.rm .portrait.frozen .photo { transition: none; clip-path: none; opacity: var(--p) } .rm .toast { transform: none } .rm .mini:hover, .rm .btn:active { transform: none } .rm .bars i, .rm .chart i { transition: none } .rm .ripple { display: none }
+.rm *, .rm *::before { animation-name: fade !important; animation-duration: .2s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; animation-timing-function: linear !important; scroll-behavior: auto !important }
+.rm .photo { clip-path: none; opacity: 0; transition: opacity .2s linear } .rm .portrait.on .photo { opacity: 1 }
+.rm .portrait.frozen .photo { transition: none; clip-path: none; opacity: var(--p) } .rm .toast { transform: none; transition-duration: .2s } .rm .mini:hover, .rm .btn:active { transform: none } .rm .bars i, .rm .chart i { transition: none } .rm .ripple { display: none }
 @media (prefers-reduced-motion: reduce) { .gondola { animation: none } }
 @media print { .app nav, .bar, .btn, .scenery { display: none } }

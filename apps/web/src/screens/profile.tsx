@@ -141,6 +141,7 @@ export const How = () => (
 export function Onboarding({ session, onToken, stage }: { session: Session; onToken: (token: string) => void; stage?: boolean }) {
   const [draft, setDraft] = useState(blank)
   const [badge, setBadge] = useState('')
+  const [busy, setBusy] = useState(false)
   const heading = useRef<HTMLHeadingElement>(null)
   const [step, setStep] = useState(0)
   const [problem, setProblem] = useState<string>()
@@ -153,8 +154,9 @@ export function Onboarding({ session, onToken, stage }: { session: Session; onTo
     if (step === 1 && draft.interests.length < 3) return setProblem('Pick at least 3 topics so we can find what you have in common.')
     setProblem(undefined)
     if (step < 2) return setStep(step + 1)
+    setBusy(true)
     // A badge that is already taken goes back to the badge field; everything typed stays.
-    call(session, 'POST /api/me/signup', { body: { ...draft, ...(badge.trim() && { tagId: Number(badge) }) } }).then((r) => onToken(r.token), (err: Error) => { if (err.message.startsWith('Badge')) setStep(0); setProblem(err.message) })
+    call(session, 'POST /api/me/signup', { body: { ...draft, ...(badge.trim() && { tagId: Number(badge) }) } }).then((r) => onToken(r.token), (err: Error) => { setBusy(false); if (err.message.startsWith('Badge')) setStep(0); setProblem(err.message) })
   }
   return (
     <Main className="screen onboarding">
@@ -177,7 +179,7 @@ export function Onboarding({ session, onToken, stage }: { session: Session; onTo
         {step > 0 && <Problem error={problem} />}
         <div className="row end">
           {step > 0 && <button type="button" className="btn" onClick={() => setStep(step - 1)}>Back</button>}
-          <button type="submit" className="btn primary">{step < 2 ? 'Next' : 'Get my badge'}</button>
+          <button type="submit" className="btn primary" disabled={busy}>{busy ? 'Getting your badge…' : step < 2 ? 'Next' : 'Get my badge'}</button>
         </div>
       </form>
       <section className="demo-in" aria-label="Demo sign-in">

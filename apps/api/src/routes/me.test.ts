@@ -28,10 +28,10 @@ beforeEach(() => {
 })
 
 test('a badge claimed by a concurrent signup is skipped, so no two people share a tag', async () => {
-  // Badge 1 was claimed between our read and our write: the lock answers 'noop' (409 ignored).
+  // The first app-assigned ID was claimed between our read and write, so the atomic lock skips it.
   vi.mocked(es.index).mockResolvedValueOnce({ result: 'noop' } as any).mockResolvedValue({ result: 'created' } as any)
-  expect((await (await signup()).json()).me.tagId).toBe(2)
-  expect(vi.mocked(es.index).mock.calls.filter(([r]) => r.index === 'tags').map(([r]) => r.id)).toEqual(['1', '2'])
+  expect((await (await signup()).json()).me.tagId).toBe(588)
+  expect(vi.mocked(es.index).mock.calls.filter(([r]) => r.index === 'tags').map(([r]) => r.id)).toEqual(['587', '588'])
 })
 
 test('a wrong code is refused instead of silently creating an attendee', async () => {
@@ -97,4 +97,22 @@ test("photo '' removes the photo", async () => {
   await send('PATCH', '/', { photo: '' })
   const docs = Object.fromEntries(vi.mocked(es.update).mock.calls.map(([r]) => [r.index, r.doc]))
   expect(docs).toEqual({ vault: { photo: null }, profiles: { hasPhoto: false } })
+})
+
+test('a printed badge can be claimed by its number at sign-up, once', async () => {
+  expect((await (await signup({ tagId: 501 })).json()).me.tagId).toBe(501)
+  expect(vi.mocked(es.index).mock.calls[0][0]).toMatchObject({ index: 'tags', id: '501', op_type: 'create' })
+  vi.mocked(es.index).mockResolvedValueOnce({ result: 'noop' } as any)
+  const taken = await signup({ tagId: 501 })
+  expect(taken.status).toBe(409)
+  expect(await taken.json()).toEqual({ error: 'Badge 501 already belongs to someone' })
+  expect((await signup({ tagId: 587 })).status).toBe(400)
+})
+
+test('a printed badge already on a profile cannot be claimed even without a tags-index lock', async () => {
+  vi.mocked(es.search).mockResolvedValueOnce({ hits: { hits: [{ _source: { tagId: 501 } }] } } as any)
+  const res = await signup({ tagId: 501 })
+  expect(res.status).toBe(409)
+  expect(await res.json()).toEqual({ error: 'Badge 501 already belongs to someone' })
+  expect(es.index).not.toHaveBeenCalled()
 })

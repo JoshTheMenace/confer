@@ -19,7 +19,7 @@ const v2 = {
     about: { ...text, copy_to: 'about_semantic' },
     stuckOn: { ...text, copy_to: 'about_semantic' },
     about_semantic: { type: 'semantic_text' }, // everything: only booth and talk matching may query it
-    peer_semantic: { type: 'semantic_text' }, // tags only: the one field a search for people may query
+    peer_semantic: { type: 'semantic_text' }, // tag lists only (topics, looking for): the one semantic field a search for people may query
     discoverable: bool, openToBooths: bool, boothsSeeName: bool, autoShare: kw, shareFields: kw, starred: kw, hasPhoto: bool,
     interestEdits: { type: 'integer' }, // capped, so interests can't be cycled to probe other people's
     pitch: text, attachment: { properties: { url: stored, label: text } },

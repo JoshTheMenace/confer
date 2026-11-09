@@ -5,12 +5,12 @@ import { auth, type Me } from '../auth.js'
 import { commonOf } from '../common.js'
 import { autoShares, bulk, cards, giveCards, pairId, relations, sources, swap, toKind, type Meeting } from '../consent.js'
 import type { Api, Common } from '../contract.js'
-import { ix } from '../es.js'
+import { ix, refreshSoon } from '../es.js'
 import { commonSize, scans, span } from '../telemetry.js'
 
 // A person can't really meet 30 people a minute; this stops scripts sweeping every badge id.
 const recent = new Map<string, number[]>()
-const tooFast = (id: string, n: number, now = Date.now()) => {
+export const tooFast = (id: string, n: number, now = Date.now()) => {
   const hits = [...(recent.get(id) ?? []).filter((t) => now - t < 60_000), ...Array(n).fill(now)]
   recent.set(id, hits)
   return hits.length > 30
@@ -38,6 +38,7 @@ export const scan = new Hono<{ Variables: { me: Me } }>()
         giveCards(viewer.kind !== 'sponsor' ? [] : met.filter((m) => !m.shareIn && autoShares(m.subject, viewer.id, m.mine.common))
           .map((m) => ({ from: m.subject.id, to: me, fields: m.subject.shareFields ?? [], via: 'auto' as const }))),
       ])
+      if (firsts.length) refreshSoon(ix.meetings) // People is a search: without this the other person waits up to 5s to see who scanned them
       for (const { mine } of firsts) {
         scans.add(1, { kind: mine.kind, source })
         commonSize.record(mine.common.length)

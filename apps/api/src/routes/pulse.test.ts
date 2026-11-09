@@ -12,7 +12,7 @@ const responses = (organizer: boolean) => [
   { aggregations: { kinds: agg(['attendee', 40], ['sponsor', 2]), ...(organizer && { attendees: { top: agg(['Tracing', 9]) } }) } },
   { ...hits(12), aggregations: { recent: { perMin: agg([thisMinute(), 3]) }, booths: { byBooth: agg(['b1', 5]) } } },
   { ...hits(6), aggregations: { recent: { perMin: agg([thisMinute(), 1]) } } },
-  { ...hits(8), aggregations: { shared: { doc_count: 2 }, byBooth: agg(['b1', 4, 1]) } },
+  { ...hits(11), aggregations: { booths: { doc_count: 8, shared: { doc_count: 2 }, byBooth: agg(['b1', 4, 1]) } } },
   hits(1),
   { aggregations: { byBooth: agg(['b1', 1]) } },
   { hits: { hits: [{ _id: 'b1', _source: { displayName: 'Dash0' } }, { _id: 'b2', _source: { displayName: 'Elastic' } }] } },
@@ -38,7 +38,7 @@ beforeEach(() => {
 
 test('an attendee gets totals, a 30-minute series and live health, from one Elasticsearch round trip', async () => {
   const body = await (await get('attendee')).json()
-  expect(body.totals).toEqual({ attendees: 40, booths: 2, meetings: 12, shares: 6, unshares: 1, requests: 8, shareRate: 0.25 })
+  expect(body.totals).toEqual({ attendees: 40, booths: 2, meetings: 12, shares: 6, unshares: 1, requests: 11, shareRate: 0.25 })
   expect(body.series).toHaveLength(30)
   expect(body.series[29]).toEqual({ t: new Date(thisMinute()).toISOString(), scans: 3, shares: 1 })
   expect(body.series[0]).toMatchObject({ scans: 0, shares: 0 })
@@ -47,7 +47,7 @@ test('an attendee gets totals, a 30-minute series and live health, from one Elas
   expect(vi.mocked(fetch).mock.calls[0][1]).toMatchObject({ headers: { authorization: 'Bearer otlp-token' } })
   expect(es.msearch).toHaveBeenCalledTimes(1)
   const searches = vi.mocked(es.msearch).mock.calls[0][0]!.searches as { index?: string }[]
-  expect(searches.filter((_, i) => i % 2 === 0).map((s) => s.index)).toEqual(['test_profiles', 'test_meetings', 'test_shares', 'test_requests', 'test_receipts'])
+  expect(searches.filter((_, i) => i % 2 === 0).map((s) => s.index)).toEqual(['test_profiles', 'test_meetings', 'test_shares', 'test_threads', 'test_receipts'])
   expect(JSON.stringify(searches)).not.toContain('interests') // other people's topics are not even asked for
 })
 

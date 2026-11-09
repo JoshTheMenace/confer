@@ -30,6 +30,7 @@ async function myself(viewer: Me) {
 export const me = new Hono<{ Variables: { me: Me } }>()
   .post('/signup', zValidator('json', envelopes.extend({ sponsorCode: z.string().optional() })), async (c) => {
     const { contact, sponsorCode, ...profile } = c.req.valid('json')
+    if (sponsorCode && sponsorCode !== process.env.SPONSOR_CODE) return c.json({ error: 'invalid sponsor code' }, 403)
     const taken = await es.search<{ tagId: number }>({ index: 'profiles', size: 500, _source: ['tagId'], query: { range: { tagId: { lt: 500 } } } })
     const takenTags = new Set(taken.hits.hits.map((h) => h._source!.tagId))
     const candidates = Array.from({ length: 500 }, (_, t) => t).filter((t) => !takenTags.has(t))
@@ -40,7 +41,7 @@ export const me = new Hono<{ Variables: { me: Me } }>()
       if (r.result === 'created') { tagId = t; break }
     }
     if (tagId === undefined) return c.json({ error: 'no badges left' }, 409)
-    const kind = process.env.SPONSOR_CODE && sponsorCode === process.env.SPONSOR_CODE ? 'sponsor' : 'attendee'
+    const kind = sponsorCode ? 'sponsor' : 'attendee'
     await es.index({ index: 'vault', id, document: contact })
     await es.index({ index: 'profiles', id, document: { ...profile, tagId, kind, tokenHash: hashToken(token) }, refresh: 'wait_for' })
     log.info({ profile: id, tagId, kind }, 'signup')

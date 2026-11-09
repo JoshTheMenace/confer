@@ -16,7 +16,7 @@ Confer is for a loud, crowded hall, so it has to work for people who cannot or w
 
 ## Automated audit (axe-core)
 
-An agent drove headless Chrome through 22 screens in light and dark mode (44 runs) with axe-core's WCAG 2.0, 2.1 and 2.2 A/AA rules plus best practices. The script is [evidence/axe-audit.mjs](evidence/axe-audit.mjs).
+An agent drove headless Chrome through 22 screens in light and dark mode (44 runs) with axe-core's WCAG 2.0, 2.1 and 2.2 A/AA rules plus best practices. The script is [evidence/axe-audit.mjs](evidence/axe-audit.mjs). To run it again: copy it to an empty folder, `npm i axe-core` there, serve the web app on port 5190 (`pnpm --filter @dex/web exec vite --port 5190`), then `node axe-audit.mjs`. It needs Google Chrome on macOS at its default path, and exits with 1 if any violation remains.
 
 - **First run (15:40):** 28 violation nodes, none critical, none about colour contrast or missing names. Five causes: a chat list with a role that made its items invalid, a skipped heading level on the person card, two sections with the same label in a group scan, two `main` landmarks on the Stage, and sign-up steps without an `h1`.
 - **After the fixes: 0 axe violation nodes across 44 screen/theme runs.**

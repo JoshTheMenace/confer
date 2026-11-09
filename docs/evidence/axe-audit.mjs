@@ -1,4 +1,5 @@
-// Re-runnable a11y audit: `node audit.mjs`. Needs the app on :5190 (mock mode). Exit 1 if any axe violation remains.
+// The accessibility audit behind docs/accessibility.md. To run: copy this file to an empty folder, `npm i axe-core` there, serve the
+// web app on :5190 (it is driven in mock mode), then `node axe-audit.mjs`. Needs Google Chrome on macOS. Exit 1 if a violation remains.
 import { spawn } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 const here = new URL('./', import.meta.url).pathname

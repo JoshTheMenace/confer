@@ -31,7 +31,7 @@ Deferred to the roadmap (say so honestly, do not fake): private forwarding email
 ## Privacy rules (reviewers: treat violations as critical)
 
 - A peer never receives another attendee's full `interests`, `role`, `about` or `stuckOn`: only `common`, frozen at first scan. Interest edits are capped (5 per account) so nobody can probe by cycling tags.
-- Searching for people only ever queries topic tags (`peer_semantic`), and only for attendees who turned on `discoverable`. What someone wrote about themselves or is stuck on is matched for booths and talks, never for another attendee's search.
+- Searching for people only ever reads the tags a person picked (their topics and what they are looking for; `peer_semantic` is a copy of those two lists), and only for attendees who turned on `discoverable`. What someone wrote about themselves or is stuck on is matched for booths and talks, never for another attendee's search.
 - A booth never receives a name unless `boothsSeeName` or the person shared. Booth totals are anonymous.
 - Contact and photo live in the `vault` index and are read only through an existing share (or by the owner). Every share, read and unshare writes a receipt carrying the trace id.
 - No PII in logs, span attributes, metric attributes or RUM events. Ids, kinds and counts only. Message text is PII.

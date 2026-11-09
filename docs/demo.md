@@ -30,7 +30,7 @@ Everything in this repo was built to make these five minutes work. Present from 
 | 3:50 | "We didn't just build it, we operated it today." | Left phone: **Organizer**, Pulse. "These numbers moved while we talked. Health and the SLO are read live from Dash0." |
 | 4:00 | "Dash0's Agent0 found that every request spent a quarter of a second re-checking the sign-in. Four tokens, 746 lookups. We cached it." | Dash0 tab. |
 | 4:10 | "Radar's AI investigation fixed our first broken deploy, and its MCP server checks every rollout." | Radar tab. |
-| 4:20 | "Every pull request was reviewed by Gitar. It caught a privacy hole in the API contract before any code existed, and it pushed fixes itself. Twice we disagreed and showed it measurements." | GitHub tab. |
+| 4:20 | "Every pull request was reviewed by Gitar. It caught a privacy hole in the API contract before any code existed, and it pushed fixes itself. Three times we disagreed and showed it evidence." | GitHub tab. |
 | 4:35 | "Last thing. Your photo stays hidden until you choose. You can say how you like to be approached, chat instead of shouting over a hall, type a number instead of using a camera, and turn motion off." | Back to Stage. |
 | 4:50 | "Confer. The front of your badge says hi. Only you say yes. And as promised:" | Run `demo:reset`: the volunteer's profile and photo are gone. |
 
@@ -59,7 +59,7 @@ If you quote a person's post in the video, show the real post and its link.
 - **"Is Elastic really the main database?"** Yes, the only one: profiles, contact cards, sign-in links, meetings, conversations, shares, receipts and talks.
 - **"What exactly is semantic and what is reranked?"** Discover fuses keyword and semantic retrieval (RRF) for talks, booths and people. Typed questions rerank the talks. Related topics between two people are judged by a reranker. Fit scores are ranking hints, not measured probabilities.
 - **"What LLM calls does OpenLIT see?"** None. Confer makes no LLM calls; OpenLIT is initialized and idle. The Dash0 evidence is OpenTelemetry traces, logs, metrics and RUM.
-- **"Did you blindly accept Gitar's fixes?"** No. On PR #10 we reverted one that brought back slow refresh waits, with measurements, and Gitar agreed.
+- **"Did you blindly accept Gitar's fixes?"** No. Three times we reverted one: on PR #10 it brought back slow refresh waits (we showed measurements), and on PR #21 it moved badge numbers outside the AprilTag family, so they could never be scanned. Gitar agreed each time.
 - **"Can't someone just type badge numbers?"** A scan only shows a first name, a silhouette and overlap. It is rate limited, it shows up in the other person's "who scanned me" list, and it never unlocks contact. Production badges would carry a random code, not a small number.
 - **"Can't I change my interests to find out someone's?"** What you have in common is frozen at the first scan, and interest edits are capped.
 - **"What does Unshare really do?"** It revokes access in Confer and writes a receipt; other screens update within seconds. It cannot recall a CSV, a screenshot or any other copy. The roadmap fix for email is a private forwarding address per person that stops working on Unshare.

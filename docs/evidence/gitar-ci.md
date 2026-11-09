@@ -15,7 +15,7 @@ In the same review Gitar also caught that our new `contract-first` rule would ha
 Other places Gitar changed the outcome today:
 
 - [PR #11](https://github.com/JoshTheMenace/confer/pull/11): reviewing the API **contract** before any feature code existed, it found that free-text people search could be used to probe what other attendees wrote about themselves. Fixed with a tags-only search field.
-- [PR #8](https://github.com/JoshTheMenace/confer/pull/8) and [PR #10](https://github.com/JoshTheMenace/confer/pull/10): we disagreed with an auto-applied fix twice, showed measurements, and Gitar agreed.
+- [PR #8](https://github.com/JoshTheMenace/confer/pull/8), [PR #10](https://github.com/JoshTheMenace/confer/pull/10) and [PR #21](https://github.com/JoshTheMenace/confer/pull/21): three times we disagreed with an auto-applied fix and reverted it with evidence (measurements on #8 and #10; on #21 the fix gave new badges numbers above 586, which have no AprilTag), and Gitar agreed.
 - [PR #4](https://github.com/JoshTheMenace/confer/pull/4): it blocked a merge because sponsors could read interests that attendees had hidden from sponsors, then fixed it.
 
 Fix commits authored by Gitar itself (auto-apply on), all merged:
@@ -26,4 +26,4 @@ Fix commits authored by Gitar itself (auto-apply on), all merged:
 | [#16](https://github.com/JoshTheMenace/confer/pull/16) | `8aa0b33`, `e722e3f` | interest edits and booth requests that skipped a check; consent receipts and a profile write conflict |
 | [#19](https://github.com/JoshTheMenace/confer/pull/19) | `27549bd` | the consent operator read at most 10,000 shares and could write a deletion receipt twice while search lagged: it added paging and a stable receipt id, with a test |
 
-PRs #1 to #21 each carry a Gitar review. Where we disagreed ([#8](https://github.com/JoshTheMenace/confer/pull/8), [#10](https://github.com/JoshTheMenace/confer/pull/10)), the fix was reverted with measurements and Gitar agreed.
+Every pull request carries a Gitar review. PRs #22 and later are reviewed the same way.

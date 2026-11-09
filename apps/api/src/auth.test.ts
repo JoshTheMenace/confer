@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { beforeEach, expect, test, vi } from 'vitest'
-import { auth, hashToken } from './auth.js'
+import { auth, forget, hashToken } from './auth.js'
 import { es } from './es.js'
 
 vi.mock('./es.js', () => ({ es: { get: vi.fn(), search: vi.fn(), index: vi.fn() }, ix: new Proxy({}, { get: (_, name) => name }) }))
@@ -29,4 +29,17 @@ test('unknown or missing tokens are refused', async () => {
   vi.mocked(es.search).mockResolvedValue({ hits: { hits: [] } } as any)
   expect((await call('nope')).status).toBe(401)
   expect((await call()).status).toBe(401)
+})
+
+test('with AUTH_CACHE_SECONDS set, a known token is remembered until explicitly forgotten', async () => {
+  vi.stubEnv('AUTH_CACHE_SECONDS', '60')
+  vi.mocked(es.get).mockResolvedValue({ _source: { profile: 'p3', kind: 'attendee', tagId: 7 } } as any)
+  await call('again')
+  expect(await (await call('again')).json()).toEqual({ id: 'p3', kind: 'attendee', tagId: 7 })
+  expect(es.get).toHaveBeenCalledTimes(1)
+  expect(forget(hashToken('again'))).toBe(true)
+  vi.mocked(es.get).mockResolvedValueOnce({ _source: { profile: 'p4', kind: 'attendee', tagId: 8 } } as any)
+  expect(await (await call('again')).json()).toEqual({ id: 'p4', kind: 'attendee', tagId: 8 })
+  expect(es.get).toHaveBeenCalledTimes(2)
+  vi.unstubAllEnvs()
 })

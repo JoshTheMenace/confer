@@ -18,7 +18,7 @@ export const tooFast = (id: string, n: number, now = Date.now()) => {
 
 export const scan = new Hono<{ Variables: { me: Me } }>()
   .use(auth)
-  .post('/', zValidator('json', z.object({ tagIds: z.array(z.number().int().min(0).max(1086)).min(1).max(10), source: z.enum(['camera', 'manual']) })), async (c) => {
+  .post('/', zValidator('json', z.object({ tagIds: z.array(z.number().int().min(0).max(586)).min(1).max(10), source: z.enum(['camera', 'manual']) })), async (c) => {
     const viewer = c.var.me, { tagIds, source } = c.req.valid('json')
     if (tooFast(viewer.id, tagIds.length)) return c.json({ error: 'Slow down: that is more badges than anyone can meet in a minute' }, 429)
     // Badge number to profile goes through the tags index by id: real-time, so someone who signed up a second ago is found.

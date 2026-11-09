@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: dex-web, labels: { app: dex-web } }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: dex-web } }
+  template:
+    metadata: { labels: { app: dex-web } }
+    spec:
+      containers:
+        - name: web
+          image: dex-web
+          ports: [{ containerPort: 8080 }]
+          readinessProbe: { httpGet: { path: /, port: 8080 } }
+          resources: { requests: { cpu: 50m, memory: 32Mi }, limits: { memory: 64Mi } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: dex-web }
+spec: { selector: { app: dex-web }, ports: [{ port: 80, targetPort: 8080 }] }

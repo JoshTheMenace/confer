@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: dex-api, labels: { app: dex-api } }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: dex-api } }
+  template:
+    metadata: { labels: { app: dex-api } }
+    spec:
+      containers:
+        - name: api
+          image: dex-api
+          ports: [{ containerPort: 3000 }]
+          envFrom: [{ secretRef: { name: dex-secrets } }]
+          env:
+            - { name: OTEL_SERVICE_NAME, value: dex-api }
+            - { name: POD_NAME, valueFrom: { fieldRef: { fieldPath: metadata.name } } }
+            - { name: POD_NAMESPACE, valueFrom: { fieldRef: { fieldPath: metadata.namespace } } }
+            # Links every span/log/metric in Dash0 to the exact pod Radar shows.
+            - { name: OTEL_RESOURCE_ATTRIBUTES, value: "k8s.pod.name=$(POD_NAME),k8s.namespace.name=$(POD_NAMESPACE),k8s.deployment.name=dex-api" }
+          readinessProbe: { httpGet: { path: /readyz, port: 3000 }, periodSeconds: 10 }
+          livenessProbe: { httpGet: { path: /healthz, port: 3000 } }
+          resources: { requests: { cpu: 100m, memory: 192Mi }, limits: { memory: 384Mi } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: dex-api }
+spec: { selector: { app: dex-api }, ports: [{ port: 3000 }] }

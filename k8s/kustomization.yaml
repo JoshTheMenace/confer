@@ -1,0 +1,5 @@
+namespace: dex
+resources: [namespace.yaml, api.yaml, web.yaml, expirer.yaml]
+images:
+  - { name: dex-api, newName: ghcr.io/joshthemenace/dex-api, newTag: latest }
+  - { name: dex-web, newName: ghcr.io/joshthemenace/dex-web, newTag: latest }

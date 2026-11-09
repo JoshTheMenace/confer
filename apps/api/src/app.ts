@@ -2,11 +2,12 @@ import { trace } from '@opentelemetry/api'
 import { Hono } from 'hono'
 import { routePath } from 'hono/route'
 import { es } from './es.js'
-import { catchRoutes } from './routes/catch.js'
-import { consent } from './routes/consent.js'
-import { me } from './routes/me.js'
-import { sponsor } from './routes/sponsor.js'
+import { booth } from './routes/booth.js'
+import { inbox } from './routes/inbox.js'
 import { matches } from './routes/matches.js'
+import { me } from './routes/me.js'
+import { people } from './routes/people.js'
+import { scan } from './routes/scan.js'
 
 // Probes used to ping Elasticsearch on every call (683 pings at ~560ms, found by Dash0 Agent0); check in the background instead.
 let esReady = false
@@ -33,9 +34,10 @@ export const app = new Hono()
     })
   })
   .route('/api/me', me)
-  .route('/api/catch', catchRoutes)
-  .route('/api/consent', consent)
-  .route('/api/sponsor', sponsor)
+  .route('/api/scan', scan)
+  .route('/api/people', people)
+  .route('/api/inbox', inbox)
+  .route('/api/booth', booth)
   .route('/api/matches', matches)
 
 export type AppType = typeof app

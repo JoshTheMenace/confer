@@ -3,7 +3,7 @@ import { typeOf } from './dexTypes.js'
 import { buildMatchQuery, peerCard, sharedInterests, templateWhy, type Profile } from './match.js'
 
 const es = vi.hoisted(() => ({ search: vi.fn(), get: vi.fn(), index: vi.fn() }))
-vi.mock('./es.js', () => ({ es }))
+vi.mock('./es.js', () => ({ es, ix: { tokens: 'tokens', profiles: 'profiles' } }))
 const { matches } = await import('./routes/matches.js')
 
 const ana: Profile = {

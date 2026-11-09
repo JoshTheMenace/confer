@@ -1,127 +1,141 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { cardFor, cardsFor, expiresAt, lowestFreeTag, sponsorAggQuery, tally, type Profile } from './consent.js'
+import { autoShares, cardFor, fitOf, openVault, type Meeting, type Share } from './consent.js'
+import type { Common, ContactField, Profile } from './contract.js'
 import { es } from './es.js'
 
-vi.mock('./es.js', () => ({ es: { get: vi.fn(), index: vi.fn(), mget: vi.fn() } }))
+vi.mock('./es.js', () => ({ es: { mget: vi.fn(), bulk: vi.fn() }, ix: new Proxy({}, { get: (_, name) => name }) }))
 
 const person = (id: string, over: Partial<Profile> = {}): Profile => ({
-  id, kind: 'attendee', tagId: 1, displayName: id, approach: 'open', commPref: "I'm Deaf, text me",
-  role: 'dev', interests: ['rust'], lookingFor: ['job'], interestsVisibleTo: ['peers'], discoverable: true, ...over,
+  id, tagId: 1, kind: 'attendee', displayName: id, pronouns: 'she/her', approach: 'open', commPref: "I'm Deaf, text me",
+  role: 'SRE', interests: ['Go', 'eBPF', 'Rust'], lookingFor: ['mentoring'], about: 'about me', stuckOn: 'stuck on tracing',
+  discoverable: true, openToBooths: false, boothsSeeName: false, autoShare: 'off', shareFields: ['email'], starred: [], hasPhoto: true, ...over,
 })
-const ana = person('ana')
-const ben = { id: 'ben', kind: 'attendee' } as const
-const acme = { id: 'acme', kind: 'sponsor' } as const
+const ana = person('ana'), open = person('ana', { openToBooths: true })
+const acmeBooth = person('acme', { kind: 'sponsor', interests: ['Search'], about: 'we do search', pitch: 'Here is the guide', attachment: { url: 'https://example.com/guide', label: 'Guide' } })
+const ben = { id: 'ben', kind: 'attendee' } as const, acme = { id: 'acme', kind: 'sponsor' } as const
+const common: Common[] = [{ kind: 'same', mine: 'Go', theirs: 'go' }, { kind: 'related', mine: 'eBPF', theirs: 'Cilium' }]
+const meeting = (scanner: string, scanned: string, at = '2026-11-09T10:00:00.000Z'): Meeting => ({ scanner, scanned, kind: 'peer', source: 'camera', at, common })
+const share = (from: string, to: string, fields: ContactField[] = ['email']): Share => ({ from, to, fields, via: 'manual', at: '2026-11-09T11:00:00.000Z' })
+const vault = { email: 'ana@example.com', linkedin: 'in/ana', github: 'ana', photo: 'data:image/png;base64,AAAA' }
+const topics = ['interests', 'role', 'about', 'stuckOn'] as const
 
-describe('cardFor', () => {
-  test('peer without mutual: badge and shared interests, contact sealed', () => {
-    const card = cardFor({ subject: ana, viewer: ben })
-    expect(card.badge).toEqual({ displayName: 'ana', pronouns: undefined, approach: 'open', commPref: "I'm Deaf, text me" })
-    expect(card.interests?.interests).toEqual(['rust'])
-    expect(card.unlocked).toEqual([])
+describe('cardFor: peers', () => {
+  test('a peer gets the badge and nothing else', () => {
+    expect(cardFor(ben, { subject: ana })).toEqual({ id: 'ana', tagId: 1, kind: 'attendee', name: 'ana', pronouns: 'she/her', approach: 'open', commPref: "I'm Deaf, text me", common: [] })
   })
 
-  test('peer with mutual catch: contact unlocked', () => {
-    expect(cardFor({ subject: ana, viewer: ben, mutual: true }).unlocked).toEqual(['email', 'linkedin', 'github'])
+  test('a peer never gets topics: not when open to booths, not after a share', () => {
+    for (const card of [cardFor(ben, { subject: open }), cardFor(ben, { subject: open, mine: meeting('ben', 'ana'), shareIn: share('ana', 'ben'), vault })])
+      for (const key of topics) expect(card).not.toHaveProperty(key)
   })
 
-  test('peer when interests are not shared with peers: interests hidden', () => {
-    const card = cardFor({ subject: person('ana', { interestsVisibleTo: ['sponsors'] }), viewer: ben, mutual: true })
-    expect(card.interests).toBeUndefined()
-    expect(card).not.toHaveProperty('interests')
+  test('common comes from the frozen meeting: mine as stored, theirs swapped', () => {
+    expect(cardFor(ben, { subject: ana, mine: meeting('ben', 'ana') }).common).toEqual(common)
+    expect(cardFor(ben, { subject: ana, theirs: meeting('ana', 'ben') }).common).toEqual([{ kind: 'same', mine: 'go', theirs: 'Go' }, { kind: 'related', mine: 'Cilium', theirs: 'eBPF' }])
   })
 
-  test('sponsor never sees contact without a grant, even on a mutual catch', () => {
-    expect(cardFor({ subject: ana, viewer: acme, mutual: true }).unlocked).toEqual([])
+  test('met says who scanned whom, with the latest time', () => {
+    expect(cardFor(ben, { subject: ana }).met).toBeUndefined()
+    expect(cardFor(ben, { subject: ana, mine: meeting('ben', 'ana') }).met?.by).toBe('me')
+    expect(cardFor(ben, { subject: ana, theirs: meeting('ana', 'ben') }).met?.by).toBe('them')
+    expect(cardFor(ben, { subject: ana, mine: meeting('ben', 'ana'), theirs: meeting('ana', 'ben', '2026-11-09T12:00:00.000Z') }).met).toEqual({ at: '2026-11-09T12:00:00.000Z', by: 'both' })
   })
 
-  test('sponsor sees exactly the granted fields', () => {
-    expect(cardFor({ subject: ana, viewer: acme, grantedFields: ['linkedin'] }).unlocked).toEqual(['linkedin'])
-  })
-
-  test('sponsor interests follow interestsVisibleTo', () => {
-    expect(cardFor({ subject: ana, viewer: acme }).interests).toBeUndefined()
-    expect(cardFor({ subject: person('ana', { interestsVisibleTo: ['sponsors'] }), viewer: acme }).interests?.lookingFor).toEqual(['job'])
-  })
-
-  test('self sees every envelope, even when sharing with nobody', () => {
-    const card = cardFor({ subject: person('ana', { interestsVisibleTo: [] }), viewer: { id: 'ana', kind: 'attendee' } })
-    expect(card.interests?.role).toBe('dev')
-    expect(card.unlocked).toEqual(['email', 'linkedin', 'github'])
-  })
-
-  test('peer grants are ignored: only sponsors use granted fields', () => {
-    expect(cardFor({ subject: ana, viewer: ben, grantedFields: ['email'] }).unlocked).toEqual([])
-  })
-
-  test('never leaks fields outside the envelopes (e.g. tokenHash)', () => {
-    expect(JSON.stringify(cardFor({ subject: { ...ana, tokenHash: 'secret' } as Profile, viewer: ben }))).not.toContain('secret')
+  test('internal fields never leave (tokenHash, interestEdits, lookingFor)', () => {
+    const card = cardFor(ben, { subject: { ...ana, tokenHash: 'secret-hash', interestEdits: 3 } as Profile })
+    expect(JSON.stringify(card)).not.toMatch(/secret-hash|interestEdits|mentoring/)
   })
 })
 
-describe('cardsFor (sealed envelope)', () => {
-  const missing = { found: false }
+describe('cardFor: sharing', () => {
+  test('no share: no contact, photo or role, even if a vault is passed in', () => {
+    const card = cardFor(ben, { subject: ana, mine: meeting('ben', 'ana'), theirs: meeting('ana', 'ben'), vault })
+    expect(card.theyShared).toBeUndefined()
+    expect(JSON.stringify(card)).not.toMatch(/example\.com|data:image|SRE/)
+  })
+
+  test('a share hands over exactly the shared fields, plus photo and role', () => {
+    expect(cardFor(ben, { subject: ana, shareIn: share('ana', 'ben', ['email', 'github']), vault }).theyShared)
+      .toEqual({ at: '2026-11-09T11:00:00.000Z', fields: ['email', 'github'], contact: { email: 'ana@example.com', github: 'ana' }, photo: vault.photo, role: 'SRE' })
+  })
+
+  test('my share to them shows as iShared and reveals nothing of theirs', () => {
+    const card = cardFor(ben, { subject: ana, shareOut: share('ben', 'ana') })
+    expect(card.iShared).toEqual({ at: '2026-11-09T11:00:00.000Z', fields: ['email'] })
+    expect(card.theyShared).toBeUndefined()
+  })
+})
+
+describe('cardFor: booths', () => {
+  test('a booth sees an attendee\'s topics only if they are open to booths', () => {
+    const closed = cardFor(acme, { subject: ana })
+    for (const key of topics) expect(closed).not.toHaveProperty(key)
+    expect(cardFor(acme, { subject: open })).toMatchObject({ interests: ['Go', 'eBPF', 'Rust'], role: 'SRE', about: 'about me', stuckOn: 'stuck on tracing' })
+  })
+
+  test('a booth gets no name unless boothsSeeName or the person shared', () => {
+    expect(cardFor(acme, { subject: open }).name).toBeNull()
+    expect(cardFor(acme, { subject: open, mine: meeting('acme', 'ana'), shareOut: share('acme', 'ana') }).name).toBeNull()
+    expect(cardFor(acme, { subject: person('ana', { boothsSeeName: true }) }).name).toBe('ana')
+    expect(cardFor(acme, { subject: ana, shareIn: share('ana', 'acme'), vault }).name).toBe('ana')
+  })
+
+  test('a booth\'s own profile is public, with the viewer\'s star and mute', () => {
+    expect(cardFor({ ...ben, starred: ['acme'] }, { subject: acmeBooth, muted: true }))
+      .toMatchObject({ name: 'acme', interests: ['Search'], about: 'we do search', pitch: 'Here is the guide', attachment: { label: 'Guide' }, starred: true, muted: true })
+    expect(cardFor(ben, { subject: acmeBooth })).toMatchObject({ starred: false, muted: false })
+    expect(cardFor(ben, { subject: acmeBooth })).not.toHaveProperty('stuckOn')
+  })
+})
+
+describe('openVault: the only vault read', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(es.get).mockResolvedValue({ _source: { email: 'a@x.io' } } as any)
-    vi.mocked(es.index).mockResolvedValue({} as any)
+    vi.mocked(es.mget).mockResolvedValue({ docs: [{ found: true, _source: vault }] } as any)
+    vi.mocked(es.bulk).mockResolvedValue({ errors: false, items: [] } as any)
   })
 
-  test('no mutual catch: vault is never read and no receipt is written', async () => {
-    vi.mocked(es.mget).mockResolvedValue({ docs: [missing] } as any)
-    const [card] = await cardsFor(ben, [ana])
-    expect(card.contact).toBeUndefined()
-    expect(es.get).not.toHaveBeenCalled()
-    expect(es.index).not.toHaveBeenCalled()
+  test('a read backed by the owner\'s share returns the vault and leaves an opened receipt', async () => {
+    expect((await openVault('ben', [{ owner: 'ana', share: share('ana', 'ben') }])).get('ana')).toEqual(vault)
+    expect(vi.mocked(es.mget).mock.calls[0][0]).toMatchObject({ docs: [{ _index: 'vault', _id: 'ana' }] })
+    const [action, receipt] = (vi.mocked(es.bulk).mock.calls[0][0] as any).operations
+    expect(action).toEqual({ index: { _index: 'receipts', _id: 'ana_ben_opened' } })
+    expect(receipt).toMatchObject({ owner: 'ana', who: 'ben', type: 'opened', fields: ['email'] })
   })
 
-  test('mutual catch: vault read and a receipt written', async () => {
-    vi.mocked(es.mget).mockResolvedValueOnce({ docs: [{ found: true, _source: {} }] } as any).mockResolvedValueOnce({ docs: [missing] } as any)
-    const [card] = await cardsFor(ben, [ana])
-    expect(card.contact).toEqual({ email: 'a@x.io' })
-    expect(vi.mocked(es.index).mock.calls[0][0]).toMatchObject({ index: 'receipts', id: 'ana_ben_email', document: { attendee: 'ana', viewer: 'ben', fields: ['email'] } })
+  test('no share, or a share between other people, reads nothing and writes nothing', async () => {
+    for (const s of [undefined, share('ana', 'cat'), share('cat', 'ben'), share('ben', 'ana')])
+      expect((await openVault('ben', [{ owner: 'ana', share: s }])).size).toBe(0)
+    expect(es.mget).not.toHaveBeenCalled()
+    expect(es.bulk).not.toHaveBeenCalled()
   })
 
-  test('receipts list only fields that exist, and re-reads update one receipt instead of piling up', async () => {
-    vi.mocked(es.mget).mockResolvedValue({ docs: [{ found: true, _source: {} }] } as any)
-    await cardsFor(ben, [ana])
-    await cardsFor(ben, [ana])
-    const ids = vi.mocked(es.index).mock.calls.map(([r]) => (r as any).id)
-    expect(new Set(ids)).toEqual(new Set(['ana_ben_email'])) // ana has no linkedin/github, so none are claimed as seen
+  test('reading it again updates the same receipt instead of piling up', async () => {
+    await openVault('ben', [{ owner: 'ana', share: share('ana', 'ben') }])
+    await openVault('ben', [{ owner: 'ana', share: share('ana', 'ben') }])
+    expect(new Set(vi.mocked(es.bulk).mock.calls.map(([r]) => (r as any).operations[0].index._id))).toEqual(new Set(['ana_ben_opened']))
   })
 
-  test('reading your own contact writes no receipt', async () => {
-    const { openVault } = await import('./consent.js')
-    await openVault('ana', 'ana', ['email'])
-    expect(es.index).not.toHaveBeenCalled()
-  })
-
-  test('sponsor: pending request stays sealed, granted request reads only granted fields', async () => {
-    const req = (status: string) => ({ docs: [{ found: true, _source: { status, fields: ['email'] } }] })
-    vi.mocked(es.mget).mockResolvedValueOnce({ docs: [missing] } as any).mockResolvedValueOnce(req('pending') as any)
-    expect((await cardsFor(acme, [ana]))[0].contact).toBeUndefined()
-    expect(es.get).not.toHaveBeenCalled()
-    vi.mocked(es.mget).mockResolvedValueOnce({ docs: [missing] } as any).mockResolvedValueOnce(req('granted') as any)
-    await cardsFor(acme, [ana])
-    expect(vi.mocked(es.get).mock.calls[0][0]).toMatchObject({ index: 'vault', id: 'ana', _source_includes: ['email'] })
-    expect(es.index).toHaveBeenCalledOnce()
+  test('reading your own vault needs no share and writes no receipt', async () => {
+    expect((await openVault('ana', [{ owner: 'ana' }])).get('ana')).toEqual(vault)
+    expect(es.bulk).not.toHaveBeenCalled()
   })
 })
 
-describe('helpers', () => {
-  test('expiresAt is 7 days after the event ends', () => {
-    expect(expiresAt('2026-11-09T18:30:00-07:00')).toBe('2026-11-17T01:30:00.000Z')
+describe('auto-share and fit', () => {
+  test('auto-share only under a rule the attendee turned on', () => {
+    expect(autoShares(person('ana', { starred: ['acme'] }), 'acme', common)).toBe(false) // off
+    expect(autoShares(person('ana', { autoShare: 'starred', starred: ['acme'] }), 'acme', [])).toBe(true)
+    expect(autoShares(person('ana', { autoShare: 'starred', starred: ['other'] }), 'acme', common)).toBe(false)
+    expect(autoShares(person('ana', { autoShare: 'matching' }), 'acme', common)).toBe(true)
+    expect(autoShares(person('ana', { autoShare: 'matching' }), 'acme', common.slice(0, 1))).toBe(false)
+    expect(autoShares(person('x', { kind: 'sponsor', autoShare: 'matching' }), 'acme', common)).toBe(false)
   })
 
-  test('lowestFreeTag fills gaps and stops at the reserved range', () => {
-    expect(lowestFreeTag([0, 1, 3])).toBe(2)
-    expect(lowestFreeTag(Array.from({ length: 500 }, (_, i) => i))).toBeUndefined()
-  })
-
-  test('tally counts every status', () => {
-    expect(tally(['pending', 'granted', 'pending'])).toEqual({ pending: 2, deferred: 0, granted: 1, denied: 0 })
-  })
-
-  test('sponsor aggregates only include attendees who share interests with sponsors', () => {
-    expect(sponsorAggQuery(['ana']).query.bool.filter).toContainEqual({ term: { interestsVisibleTo: 'sponsors' } })
+  test('fit grows with things in common and a star, and stays within 0 to 100', () => {
+    expect(fitOf([], false)).toBe(0)
+    expect(fitOf(common, false)).toBe(40)
+    expect(fitOf(common, true)).toBe(60)
+    expect(fitOf(Array(5).fill(common[0]), true)).toBe(100)
   })
 })

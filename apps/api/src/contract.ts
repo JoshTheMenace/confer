@@ -86,12 +86,14 @@ export type Thread = {
 }
 export type Message = { id: string; from: 'me' | 'them'; text: string; at: string }
 
-/** shared: you gave your card. opened: they looked at it. unshared: the deletion receipt. */
-export type Receipt = { id: string; type: 'shared' | 'opened' | 'unshared'; who: Card | null; fields: ContactField[]; at: string; traceId?: string }
+/** shared: you gave your card. opened: they looked at it. exported: a booth took it home in its CSV. unshared: the deletion receipt. */
+export type Receipt = { id: string; type: 'shared' | 'opened' | 'exported' | 'unshared'; who: Card | null; fields: ContactField[]; at: string; traceId?: string }
 
 /** A booth's view of one attendee: anonymous until they share. `fit` is 0 to 100. */
 export type Visitor = { card: Card; fit: number; source: 'scan' | 'match'; scannedAt?: string; request?: { status: Thread['status']; note: string; sentAt: string } }
 export type Lead = { card: Card; sharedAt: string; via: 'manual' | 'auto' | 'request'; note?: string } // note: the request that won them over
+/** One lead's consent as Kubernetes holds it: a RoleBinding in the booth's namespace, and what Kubernetes answers for `export`. */
+export type BoothGrant = { attendeeId: string; namespace: string; binding: string; verbs: string[]; kubernetes: 'allowed' | 'denied' | 'unavailable' }
 export type BoothStats = {
   scans: number; requests: number; pending: number; shared: number; ignored: number // requests = conversations this booth started
   shareRate: number // people who shared their card after a request / requests, 0 to 1
@@ -147,6 +149,9 @@ export type Api = {
   'GET /api/booth': { res: { leads: Lead[]; visitors: Visitor[]; stats: BoothStats } }
   'POST /api/booth/requests': { body: { to: string[]; note: string; attachment?: Attachment }; res: { sent: number; autoShared: number } } // the same first message to several people
   'GET /api/booth/prospects': { res: { prospects: Visitor[] } }
+  // CSV text (a download), one row per current lead. Headers: X-Confer-Gate (kubernetes | elasticsearch-only), X-Confer-Exported, X-Confer-Denied.
+  'GET /api/booth/export': { res: string }
+  'GET /api/booth/grants': { res: { grants: BoothGrant[] } }
 
   'GET /api/discover': { query: { q?: string }; res: Discover }
   'PUT /api/booths/:id/star': { res: { starred: boolean } }

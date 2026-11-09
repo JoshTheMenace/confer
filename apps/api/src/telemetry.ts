@@ -13,6 +13,7 @@ export const unshares = m.createCounter('confer.unshares', { description: 'Share
 export const requests = m.createCounter('confer.requests', { description: 'Message requests, by action (sent|accepted|shared|ignored|muted)' })
 export const messages = m.createCounter('confer.messages', { description: 'Chat messages, by to (peer|booth) and first (true|false). Never the text.' })
 export const vaultReads = m.createCounter('confer.vault.reads', { description: 'Reads of the sealed envelope, by reason (self|share)' })
+export const grants = m.createCounter('confer.grants', { description: 'Kubernetes consent grants reconciled, by action (created|updated|revoked|expired)' })
 export const commonSize = m.createHistogram('confer.common.size', { description: 'Things in common found per scan' })
 
 const tracer = trace.getTracer('confer')

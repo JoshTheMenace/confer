@@ -6,6 +6,7 @@ import { es } from './es.js'
 import { booth } from './routes/booth.js'
 import { chats } from './routes/chats.js'
 import { booths, discover, prospects } from './routes/discover.js'
+import { boothExport } from './routes/export.js'
 import { inbox } from './routes/inbox.js'
 import { me } from './routes/me.js'
 import { people } from './routes/people.js'
@@ -46,6 +47,7 @@ export const app = new Hono()
   .route('/api/chats', chats)
   .route('/api/booth', booth)
   .route('/api/booth', prospects)
+  .route('/api/booth', boothExport)
   .route('/api/discover', discover)
   .route('/api/booths', booths)
   .route('/api/pulse', pulse)

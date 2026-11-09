@@ -10,7 +10,7 @@ export const tokenLink = (tokenHash: string, me: Me) => ({ index: ix.tokens, id:
 // Hackathon-grade auth: signup mints a random bearer token; only its hash is stored.
 // The hash is the id of a `tokens` doc, so login is a real-time GET: a brand-new account works on its very
 // next request without waiting for a search refresh (5s on Serverless, found by Dash0 Agent0).
-async function resolve(tokenHash: string): Promise<Me | undefined> {
+async function lookUp(tokenHash: string): Promise<Me | undefined> {
   const link = await es.get<{ profile: string; kind: Kind; tagId: number }>({ index: ix.tokens, id: tokenHash }, { ignore: [404] })
   if (link._source) return { id: link._source.profile, kind: link._source.kind, tagId: link._source.tagId }
   // Accounts created before the tokens index: find once by search, then link for next time.
@@ -18,6 +18,21 @@ async function resolve(tokenHash: string): Promise<Me | undefined> {
   if (!hit) return
   const me = { ...hit._source!, id: hit._id! }
   await es.index(tokenLink(tokenHash, me))
+  return me
+}
+
+// That GET ran before every request and cost about 270 ms each time (Dash0: `get` p50 on dex-api, docs/incidents.md #5).
+// A token never changes hands, so a pod may remember who it belongs to for AUTH_CACHE_SECONDS (30 in k8s/base/api.yaml;
+// off by default). Unknown tokens are never remembered. Kept short on purpose: an account that is deleted (the event ends, a
+// demo reset) stops working within that time, and a phone that polls every few seconds still skips nine lookups in ten.
+const known = new Map<string, { me: Me; until: number }>()
+export const forget = (tokenHash: string) => known.delete(tokenHash)
+async function resolve(tokenHash: string): Promise<Me | undefined> {
+  const hit = known.get(tokenHash), ttl = Number(process.env.AUTH_CACHE_SECONDS ?? 0) * 1000
+  if (hit && hit.until > Date.now()) return hit.me
+  const me = await lookUp(tokenHash)
+  if (known.size > 10_000) known.clear()
+  if (me && ttl) known.set(tokenHash, { me, until: Date.now() + ttl })
   return me
 }
 

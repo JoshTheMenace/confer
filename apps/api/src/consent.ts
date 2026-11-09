@@ -72,51 +72,61 @@ export async function bulk(operations: object[]) {
 }
 
 // The single vault read path. A read for someone else needs the owner's share doc and leaves an `opened` receipt:
-// one per owner and viewer (stable id), stamped with the latest read.
+// one per owner and viewer (stable id), stamped with the latest read. People polls every 2 seconds and a write costs
+// about 0.5s, so the stamp is refreshed at most once a minute.
+const stamped = new Map<string, number>()
 export function openVault(viewer: string, reads: { owner: string; share?: Share }[]): Promise<Map<string, Vault>> {
   const allowed = reads.filter((r) => r.owner === viewer || (r.share?.from === r.owner && r.share.to === viewer))
   if (!allowed.length) return Promise.resolve(new Map())
   return span('vault.read', { count: allowed.length }, async () => {
     const at = new Date().toISOString()
+    const due = allowed.filter((r) => r.owner !== viewer && Date.now() - (stamped.get(pairId(r.owner, viewer)) ?? 0) > 60_000)
     const [vaults] = await Promise.all([
       sources(allowed.map((r) => ({ _index: ix.vault, _id: r.owner }))),
-      bulk(allowed.filter((r) => r.owner !== viewer).flatMap((r) => [
+      bulk(due.flatMap((r) => [
         { index: { _index: ix.receipts, _id: `${pairId(r.owner, viewer)}_opened` } },
         { owner: r.owner, who: viewer, type: 'opened', fields: r.share!.fields, at, traceId: traceId() },
       ])),
     ])
+    for (const r of due) stamped.set(pairId(r.owner, viewer), Date.now())
     for (const r of allowed) vaultReads.add(1, { reason: r.owner === viewer ? 'self' : 'share' })
     return new Map(allowed.map((r, i) => [r.owner, vaults[i] ?? {}]))
   })
 }
 
-/** How the viewer and each subject stand right now, read by id so a share or unshare shows at once. */
-export async function relations(viewer: Viewer, subjects: Profile[]): Promise<Relation[]> {
-  const found = await sources(subjects.flatMap((s) => [
-    { _index: ix.meetings, _id: pairId(viewer.id, s.id) }, { _index: ix.meetings, _id: pairId(s.id, viewer.id) },
-    { _index: ix.shares, _id: pairId(s.id, viewer.id) }, { _index: ix.shares, _id: pairId(viewer.id, s.id) },
-    { _index: ix.mutes, _id: pairId(viewer.id, s.id) },
-  ]))
-  const rels = subjects.map((subject, i): Relation => {
-    const [mine, theirs, shareIn, shareOut, mute] = found.slice(i * 5, i * 5 + 5)
-    return { subject, mine, theirs, shareIn, shareOut, muted: !!mute }
+/** The viewer's own profile, plus each person and how the two stand right now. One read by id, so a share or unshare shows at once. */
+export async function relations(viewer: Viewer, ids: string[]): Promise<{ me: Profile; rels: Relation[] }> {
+  const [me, ...found] = await sources([{ _index: ix.profiles, _id: viewer.id }, ...ids.flatMap((id) => [
+    { _index: ix.profiles, _id: id },
+    { _index: ix.meetings, _id: pairId(viewer.id, id) }, { _index: ix.meetings, _id: pairId(id, viewer.id) },
+    { _index: ix.shares, _id: pairId(id, viewer.id) }, { _index: ix.shares, _id: pairId(viewer.id, id) },
+    { _index: ix.mutes, _id: pairId(viewer.id, id) },
+  ])])
+  const rels = ids.flatMap((id, i): Relation[] => {
+    const [subject, mine, theirs, shareIn, shareOut, mute] = found.slice(i * 6, i * 6 + 6)
+    return subject ? [{ subject: { ...subject, id }, mine, theirs, shareIn, shareOut, muted: !!mute }] : []
   })
-  const vault = await openVault(viewer.id, rels.filter((r) => r.shareIn).map((r) => ({ owner: r.subject.id, share: r.shareIn })))
-  return rels.map((r) => ({ ...r, vault: vault.get(r.subject.id) }))
+  return { me: { ...me, id: viewer.id }, rels }
 }
 
-export const cardsFor = async (viewer: Viewer, subjects: Profile[]) => (await relations(viewer, subjects)).map((r) => cardFor(viewer, r))
+/** Cards through the lens. The vault is opened only for people with a share to the viewer. */
+export async function cards(viewer: Viewer, rels: Relation[]): Promise<Card[]> {
+  const vault = await openVault(viewer.id, rels.filter((r) => r.shareIn).map((r) => ({ owner: r.subject.id, share: r.shareIn })))
+  return rels.map((r) => cardFor(viewer, { ...r, vault: vault.get(r.subject.id) }))
+}
 
-/** Hands over contact cards: one share doc (`from_to`) and one `shared` receipt each, in a single write. */
-export function giveCards(list: { from: string; to: Profile; fields: ContactField[]; via: Share['via']; note?: string }[]) {
-  if (!list.length) return Promise.resolve()
+/** Hands over contact cards: one share doc (`from_to`) and one `shared` receipt each, in a single write. Returns the shares. */
+export function giveCards(list: { from: string; to: Profile; fields: ContactField[]; via: Share['via']; note?: string }[]): Promise<Share[]> {
+  if (!list.length) return Promise.resolve([])
   return span('share', { count: list.length, via: list[0].via }, async () => {
     const at = new Date().toISOString()
-    await bulk(list.flatMap(({ from, to, fields, via, note }) => [
-      { index: { _index: ix.shares, _id: pairId(from, to.id) } }, { from, to: to.id, fields, via, note, at } satisfies Share,
-      { index: { _index: ix.receipts } }, { owner: from, who: to.id, type: 'shared', fields, at, traceId: traceId() },
+    const given = list.map(({ from, to, fields, via, note }): Share => ({ from, to: to.id, fields, via, note, at }))
+    await bulk(given.flatMap((s) => [
+      { index: { _index: ix.shares, _id: pairId(s.from, s.to) } }, s,
+      { index: { _index: ix.receipts } }, { owner: s.from, who: s.to, type: 'shared', fields: s.fields, at, traceId: traceId() },
     ]))
     for (const s of list) shares.add(1, { via: s.via, to: toKind(s.to) })
+    return given
   })
 }
 

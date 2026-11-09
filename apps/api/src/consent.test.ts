@@ -110,10 +110,17 @@ describe('openVault: the only vault read', () => {
     expect(es.bulk).not.toHaveBeenCalled()
   })
 
-  test('reading it again updates the same receipt instead of piling up', async () => {
-    await openVault('ben', [{ owner: 'ana', share: share('ana', 'ben') }])
-    await openVault('ben', [{ owner: 'ana', share: share('ana', 'ben') }])
-    expect(new Set(vi.mocked(es.bulk).mock.calls.map(([r]) => (r as any).operations[0].index._id))).toEqual(new Set(['ana_ben_opened']))
+  test('reading it again re-stamps the same receipt, at most once a minute', async () => {
+    vi.useFakeTimers({ now: Date.now() + 3_600_000 })
+    const read = () => openVault('cat', [{ owner: 'ana', share: share('ana', 'cat') }])
+    await read()
+    await read()
+    expect(es.bulk).toHaveBeenCalledTimes(1)
+    expect(es.mget).toHaveBeenCalledTimes(2) // the share is still checked and the vault still read every time
+    vi.advanceTimersByTime(61_000)
+    await read()
+    expect(vi.mocked(es.bulk).mock.calls.map(([r]) => (r as any).operations[0].index._id)).toEqual(['ana_cat_opened', 'ana_cat_opened'])
+    vi.useRealTimers()
   })
 
   test('reading your own vault needs no share and writes no receipt', async () => {

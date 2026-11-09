@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 const es = vi.hoisted(() => ({ get: vi.fn(), search: vi.fn(), msearch: vi.fn(), update: vi.fn(), index: vi.fn() }))
-const ix = vi.hoisted(() => ({ talks: 't_talks', profiles: 't_profiles', meetings: 't_meetings', mutes: 't_mutes' }))
+const ix = vi.hoisted(() => ({ talks: 't_talks', profiles: 't_profiles', meetings: 't_meetings', mutes: 't_mutes', tokens: 't_tokens' }))
 vi.mock('./es.js', () => ({ es, ix }))
 const { discoverSearches, fit, prospectSearch, sameTags, toCard, toDiscover, toProspect, why } = await import('./discover.js')
 const { booths, discover, prospects } = await import('./routes/discover.js')
@@ -126,7 +126,7 @@ describe('routes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     kind = 'attendee'
-    es.get.mockImplementation(async ({ index, id }) => index === 'tokens' ? { _source: { profile: 'me', kind, tagId: 1 } } : { _source: ({ me, b1: booth, p1: person } as any)[id] })
+    es.get.mockImplementation(async ({ index, id }) => index === ix.tokens ? { _source: { profile: 'me', kind, tagId: 1 } } : { _source: ({ me, b1: booth, p1: person } as any)[id] })
     es.msearch.mockResolvedValue({ responses: [{ hits: { hits: [] } }, { hits: { hits: [hit('b1', booth)] } }, { hits: { hits: [hit('p1', person)] } }] })
   })
 

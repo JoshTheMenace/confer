@@ -13,6 +13,7 @@
 | Scan shows name, role, full interests | Scan shows first name, a **silhouette**, and **things in common** (never the full list) |
 | Contact opens on a mutual scan | **One-way Share**, any time, by either person; "Share back?" nudge; **Unshare** with a deletion receipt |
 | No photo | Optional selfie, seen only by people you shared with, deleted after the event |
+| No way to talk without swapping details | **Text chat** inside every request. The first message is the reason; the other person gets a **message request** they can open if they want, answer, ignore or mute. Chat never reveals more than the card: sharing stays a separate tap. It is also the accessible way to talk in a loud hall. |
 | Booth scan creates a blanket consent request | Booth sees interests and fit, **no name**; sends a **request with a note and an attachment**; attendee gets the content either way and picks **Share / Ignore / Mute** |
 | Only the scanner keeps the meeting | Meeting lands in **both** people's list: that list is also the "who scanned me" log |
 | Exact tag overlap | Things in common = same tags **plus related tags** found with Elastic embeddings ("Tracing" ↔ "OpenTelemetry") |
@@ -33,7 +34,8 @@ Deferred to the roadmap (say so honestly, do not fake): private forwarding email
 - Searching for people only ever queries topic tags (`peer_semantic`), and only for attendees who turned on `discoverable`. What someone wrote about themselves or is stuck on is matched for booths and talks, never for another attendee's search.
 - A booth never receives a name unless `boothsSeeName` or the person shared. Booth totals are anonymous.
 - Contact and photo live in the `vault` index and are read only through an existing share (or by the owner). Every share, read and unshare writes a receipt carrying the trace id.
-- No PII in logs, span attributes, metric attributes or RUM events. Ids, kinds and counts only.
+- No PII in logs, span attributes, metric attributes or RUM events. Ids, kinds and counts only. Message text is PII.
+- A chat shows the other person through the same lens as a scan. Being in a conversation unlocks nothing: a booth still sees no name, a peer still sees a silhouette, until that person shares.
 
 ## The five-minute demo (everything is built for this)
 

@@ -8,7 +8,7 @@ const MINUTE = 60_000
 type Buckets = { buckets: { key: string | number; doc_count: number; shared?: { doc_count: number } }[] }
 type Res = {
   hits?: { total?: { value: number }; hits: { _id: string; _source: { displayName: string } }[] }
-  aggregations?: { kinds?: Buckets; attendees?: { top: Buckets }; recent?: { perMin: Buckets }; booths?: { byBooth: Buckets }; shared?: { doc_count: number }; byBooth?: Buckets }
+  aggregations?: { kinds?: Buckets; attendees?: { top: Buckets }; recent?: { perMin: Buckets }; booths?: { doc_count?: number; byBooth?: Buckets; shared?: { doc_count: number } }; byBooth?: Buckets }
 }
 
 /** Every product number on the pulse as ONE msearch: a Serverless round trip costs 0.3 to 0.7s, so five would be seconds. */
@@ -16,13 +16,14 @@ function pulseSearches(since: number, organizer: boolean) {
   const count = { size: 0, track_total_hits: true }
   const perMin = { recent: { filter: { range: { at: { gte: since } } }, aggs: { perMin: { date_histogram: { field: 'at', fixed_interval: '1m' } } } } }
   const byBooth = (field: string, aggs = {}) => (organizer ? { byBooth: { terms: { field, size: 100 }, aggs } } : {})
-  const shared = { shared: { filter: { term: { status: 'shared' } } } }
+  const shared = { shared: { filter: { term: { shared: true } } } }
   return [
     // Topic counts are for organizers only: an attendee could diff them between two polls to learn a newcomer's tags.
     { index: ix.profiles }, { size: 0, aggs: { kinds: { terms: { field: 'kind' } }, ...(organizer && { attendees: { filter: { term: { kind: 'attendee' } }, aggs: { top: { terms: { field: 'interests', size: 8 } } } } }) } },
     { index: ix.meetings }, { ...count, aggs: { ...perMin, booths: { filter: { term: { kind: 'booth' } }, aggs: byBooth('scanner') } } },
     { index: ix.shares }, { ...count, aggs: perMin },
-    { index: ix.requests }, { ...count, aggs: { ...shared, ...byBooth('booth', shared) } },
+    // Every thread is a request; the share rate is about the ones a booth started.
+    { index: ix.threads }, { ...count, aggs: { booths: { filter: { term: { kind: 'booth' } }, aggs: { ...shared, ...byBooth('startedBy', shared) } } } },
     { index: ix.receipts }, { ...count, query: { term: { type: 'unshared' } } },
     ...(organizer ? [{ index: ix.mutes }, { size: 0, aggs: byBooth('booth') }, { index: ix.profiles }, { size: 100, _source: ['displayName'], query: { term: { kind: 'sponsor' } } }] : []),
   ]
@@ -72,12 +73,12 @@ export const pulse = new Hono<{ Variables: { me: Me } }>().use(auth).get('/', as
   const kinds = counts(profiles.aggregations?.kinds)
   const scansAt = counts(meetings.aggregations?.recent?.perMin), sharesAt = counts(shares.aggregations?.recent?.perMin)
   const scansBy = counts(meetings.aggregations?.booths?.byBooth), mutesBy = counts(mutes?.aggregations?.byBooth)
-  const requestsBy = new Map(requests.aggregations?.byBooth?.buckets.map((b) => [b.key, b]))
+  const asked = requests.aggregations?.booths, requestsBy = new Map(asked?.byBooth?.buckets.map((b) => [b.key, b]))
   return c.json({
     at: new Date().toISOString(),
     totals: {
       attendees: kinds.get('attendee') ?? 0, booths: kinds.get('sponsor') ?? 0, meetings: total(meetings), shares: total(shares), unshares: total(unshares),
-      requests: total(requests), shareRate: rate(requests.aggregations?.shared?.doc_count, total(requests)),
+      requests: total(requests), shareRate: rate(asked?.shared?.doc_count, asked?.doc_count),
     },
     series: Array.from({ length: 30 }, (_, i) => start + i * MINUTE).map((t) => ({ t: new Date(t).toISOString(), scans: scansAt.get(t) ?? 0, shares: sharesAt.get(t) ?? 0 })),
     topInterests: organizer ? (profiles.aggregations?.attendees?.top.buckets ?? []).map((b) => ({ term: String(b.key), count: b.doc_count })) : [],

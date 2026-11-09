@@ -1,15 +1,23 @@
-import type { Attachment, BoothRequest, Card, Common, Contact, ContactField, Kind, Profile, Receipt } from './contract.js'
+import { randomUUID } from 'node:crypto'
+import { commonOf } from './common.js'
+import type { Attachment, Card, Common, Contact, ContactField, Kind, Message, Profile, Receipt, Thread } from './contract.js'
 import { es, ix } from './es.js'
-import { shares, span, traceId, vaultReads } from './telemetry.js'
+import { messages, requests, shares, span, traceId, vaultReads } from './telemetry.js'
 
 export type Viewer = { id: string; kind: Kind; starred?: string[] }
 export type Meeting = { scanner: string; scanned: string; kind: 'peer' | 'booth'; source: string; at: string; common: Common[] }
 export type Share = { from: string; to: string; fields: ContactField[]; via: 'manual' | 'auto' | 'request'; note?: string; at: string }
 export type Vault = Contact & { photo?: string | null }
-/** Everything the lens needs to know about one viewer and one subject. */
-export type Relation = { subject: Profile; mine?: Meeting; theirs?: Meeting; shareIn?: Share; shareOut?: Share; muted?: boolean; vault?: Vault }
+/** `hidden`: sent to someone who muted the sender, so only the sender ever sees it. */
+export type Msg = { id: string; from: string; text: string; at: string; hidden?: boolean }
+export type ThreadDoc = {
+  a: string; b: string; startedBy: string; kind: 'peer' | 'booth'; status: Thread['status']; source: Thread['source']; why: Common[] // why: as the starter sees it
+  attachment?: Attachment; firstText: string; createdAt: string; lastAt: string; expiresAt: string; readA?: string; readB?: string; shared?: boolean; messages: Msg[]
+}
+/** Everything the lens needs to know about one viewer and one subject. `mutedMe` is for sending only: it never reaches a card. */
+export type Relation = { subject: Profile; mine?: Meeting; theirs?: Meeting; shareIn?: Share; shareOut?: Share; muted?: boolean; mutedMe?: boolean; thread?: ThreadDoc; vault?: Vault }
 
-// Deterministic ids make meetings, shares, requests and mutes idempotent and readable by id (real-time, no search refresh).
+// Deterministic ids make meetings, shares, threads and mutes idempotent and readable by id (real-time, no search refresh).
 export const pairId = (from: string, to: string) => `${from}_${to}`
 export async function allShares(query: { term: { to: string } } | { terms: { to: string[] } }, source?: string[]): Promise<Share[]> {
   const size = 1000, found: Share[] = []
@@ -25,6 +33,8 @@ export async function allShares(query: { term: { to: string } } | { terms: { to:
     if (!after) throw new Error('share search is missing sort values')
   }
 }
+export const threadId = (x: string, y: string) => [x, y].sort().join('_')
+export const readKey = (t: { a: string }, viewer: string) => (t.a === viewer ? 'readA' : 'readB')
 export const swap = (common: Common[] = []): Common[] => common.map((c) => ({ kind: c.kind, mine: c.theirs, theirs: c.mine }))
 export const toKind = (p: { kind: Kind }) => (p.kind === 'sponsor' ? 'booth' : 'peer')
 export const eventEndsAt = () => Date.parse(process.env.EVENT_ENDS_AT ?? '2026-11-09T18:30:00-07:00')
@@ -40,8 +50,9 @@ export const fitOf = (common: Common[], starred: boolean) =>
   Math.min(100, common.reduce((n, c) => n + (c.kind === 'same' ? 25 : 15), 0) + (starred ? 20 : 0))
 
 // The only who-sees-what rule (docs/design.md, "Privacy rules"). Pure: everything it may reveal is passed in.
-export function cardFor(viewer: Viewer, { subject: s, mine, theirs, shareIn, shareOut, muted, vault = {} }: Relation): Card {
+export function cardFor(viewer: Viewer, { subject: s, mine, theirs, shareIn, shareOut, muted, thread, vault = {} }: Relation): Card {
   const attendee = s.kind === 'attendee', booth = viewer.kind === 'sponsor'
+  const seen = thread && visible(thread, viewer.id).length ? thread : undefined
   const at = [mine?.at, theirs?.at].filter((t) => t !== undefined).sort().at(-1)
   return {
     id: s.id, tagId: s.tagId, kind: s.kind,
@@ -56,6 +67,7 @@ export function cardFor(viewer: Viewer, { subject: s, mine, theirs, shareIn, sha
       },
     }),
     ...(shareOut && { iShared: { at: shareOut.at, fields: shareOut.fields } }),
+    ...(seen && { thread: { status: seen.status, startedBy: seen.startedBy === viewer.id ? ('me' as const) : ('them' as const), unread: unread(seen, viewer.id) } }),
     // An attendee's topics reach a booth they are open to, never a peer.
     ...(attendee && booth && s.openToBooths && { interests: s.interests, role: s.role, about: s.about, stuckOn: s.stuckOn }),
     ...(s.kind === 'sponsor' && {
@@ -63,6 +75,56 @@ export function cardFor(viewer: Viewer, { subject: s, mine, theirs, shareIn, sha
       starred: !!viewer.starred?.includes(s.id), muted: !!muted,
     }),
   }
+}
+
+/** What one side may see of a thread: everything except messages sent to them while they had the sender muted. */
+export const visible = (t: ThreadDoc, viewer: string) => t.messages.filter((m) => !m.hidden || m.from === viewer)
+const unread = (t: ThreadDoc, viewer: string) => visible(t, viewer).filter((m) => m.from !== viewer && m.at > (t[readKey(t, viewer)] ?? '')).length
+export const toMessages = (t: ThreadDoc, viewer: string): Message[] =>
+  visible(t, viewer).map((m) => ({ id: m.id, from: m.from === viewer ? 'me' : 'them', text: m.text, at: m.at }))
+/** A thread as one side sees it. Pure. `card` is the other person through the lens: a chat never widens it. */
+export function toThread(t: ThreadDoc, viewer: string, card: Card): Thread {
+  const mine = t.startedBy === viewer, last = toMessages(t, viewer).at(-1)!
+  return {
+    id: card.id, with: card, status: t.status, startedBy: mine ? 'me' : 'them', why: mine ? t.why : swap(t.why), source: t.source, attachment: t.attachment,
+    last: { text: last.text, at: last.at, from: last.from }, unread: unread(t, viewer), createdAt: t.createdAt,
+    ...(t.status === 'request' && { expiresAt: t.expiresAt }),
+  }
+}
+
+/** Who may send a first message. Returns the reason they may not, in plain words. Pure. */
+export const cannotStart = (me: { kind: Kind }, them: Profile, mine?: Meeting, theirs?: Meeting) =>
+  them.kind === 'sponsor' ? undefined
+    : me.kind === 'sponsor' ? (mine || them.openToBooths ? undefined : 'A booth can only message people it scanned or who are open to booths')
+      : mine || theirs || them.discoverable ? undefined : 'You can only message people you have met or who chose to be found'
+
+const append = `def s = ctx._source; s.messages.add(params.m); if (s.messages.size() > 200) s.messages.remove(0);
+  s.lastAt = params.m.at; s[params.read] = params.m.at; if (params.open) s.status = 'open'`
+/**
+ * The one way a message is sent. No thread yet: it becomes a message request. A reply from the recipient opens the chat.
+ * The caller has already checked `cannotStart`. If the recipient muted the sender, or ignored the sender's request, the message is
+ * stored `hidden`: the recipient never sees or counts it, and the sender can't tell.
+ */
+export function send(me: Profile, r: Relation, text: string, attachment?: Attachment): Promise<{ doc: ThreadDoc; message: Msg; first: boolean }> {
+  const them = r.subject, old = r.thread, to = toKind(them), id = threadId(me.id, them.id)
+  return span('message.send', { to, first: !old }, async () => {
+    const at = new Date().toISOString(), [a] = [me.id, them.id].sort(), read = readKey({ a }, me.id)
+    const unwelcome = r.mutedMe || (old?.status === 'ignored' && old.startedBy === me.id)
+    const message: Msg = { id: randomUUID(), from: me.id, text, at, ...(unwelcome && { hidden: true }) }
+    const open = !!old && old.startedBy !== me.id && old.status !== 'open'
+    const doc: ThreadDoc = old ? { ...old, messages: [...old.messages, message].slice(-200), lastAt: at, [read]: at, ...(open && { status: 'open' }) } : {
+      a, b: a === me.id ? them.id : me.id, startedBy: me.id, kind: toKind(me), status: 'request', source: r.mine || r.theirs ? 'scan' : 'match',
+      // Frozen like a meeting's: reused if they met, otherwise worked out once, here.
+      why: r.mine?.common ?? (r.theirs ? swap(r.theirs.common) : await commonOf(me.interests, them.interests)),
+      attachment: attachment ?? (me.kind === 'sponsor' ? me.attachment : undefined), firstText: text, createdAt: at, lastAt: at, expiresAt: expiresAt(), [read]: at, messages: [message],
+    }
+    // One scripted update appends the message, so two people writing at once never lose one.
+    if (old) await es.update({ index: ix.threads, id, retry_on_conflict: 3, script: { source: append, params: { m: message, read, open } } })
+    else await es.create({ index: ix.threads, id, document: doc })
+    messages.add(1, { to, first: !old })
+    if (!old || open) requests.add(1, { action: old ? 'accepted' : 'sent' })
+    return { doc, message, first: !old }
+  })
 }
 
 type Ref = { _index: string; _id: string }
@@ -116,11 +178,11 @@ export async function relations(viewer: Viewer, ids: string[]): Promise<{ me: Pr
     { _index: ix.profiles, _id: id },
     { _index: ix.meetings, _id: pairId(viewer.id, id) }, { _index: ix.meetings, _id: pairId(id, viewer.id) },
     { _index: ix.shares, _id: pairId(id, viewer.id) }, { _index: ix.shares, _id: pairId(viewer.id, id) },
-    { _index: ix.mutes, _id: pairId(viewer.id, id) },
+    { _index: ix.mutes, _id: pairId(viewer.id, id) }, { _index: ix.mutes, _id: pairId(id, viewer.id) }, { _index: ix.threads, _id: threadId(viewer.id, id) },
   ])])
   const rels = ids.flatMap((id, i): Relation[] => {
-    const [subject, mine, theirs, shareIn, shareOut, mute] = found.slice(i * 6, i * 6 + 6)
-    return subject ? [{ subject: { ...subject, id }, mine, theirs, shareIn, shareOut, muted: !!mute }] : []
+    const [subject, mine, theirs, shareIn, shareOut, mute, mutedMe, thread] = found.slice(i * 8, i * 8 + 8)
+    return subject ? [{ subject: { ...subject, id }, mine, theirs, shareIn, shareOut, muted: !!mute, mutedMe: !!mutedMe, thread }] : []
   })
   return { me: { ...me, id: viewer.id }, rels }
 }
@@ -149,7 +211,3 @@ export function giveCards(list: { from: string; to: Profile; fields: ContactFiel
 export type ReceiptDoc = Omit<Receipt, 'who'> & { who: string }
 export const toReceipt = (r: ReceiptDoc, who: Map<string, Card>): Receipt =>
   ({ id: r.id, type: r.type, who: who.get(r.who) ?? null, fields: r.fields, at: r.at, traceId: r.traceId })
-
-export type RequestDoc = Omit<BoothRequest, 'id' | 'booth' | 'attachment'> & { booth: string; attendee: string; attachment?: Attachment }
-export const toRequest = (id: string, r: RequestDoc, booth: Card): BoothRequest =>
-  ({ id, booth, note: r.note, attachment: r.attachment, why: r.why ?? [], status: r.status, source: r.source, createdAt: r.createdAt, expiresAt: r.expiresAt })

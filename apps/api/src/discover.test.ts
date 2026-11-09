@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
-const es = vi.hoisted(() => ({ get: vi.fn(), search: vi.fn(), msearch: vi.fn(), update: vi.fn(), index: vi.fn() }))
-const ix = vi.hoisted(() => ({ talks: 't_talks', profiles: 't_profiles', meetings: 't_meetings', mutes: 't_mutes', tokens: 't_tokens' }))
+const es = vi.hoisted(() => ({ get: vi.fn(), mget: vi.fn(), search: vi.fn(), msearch: vi.fn(), update: vi.fn(), index: vi.fn() }))
+const ix = vi.hoisted(() => ({ talks: 't_talks', profiles: 't_profiles', meetings: 't_meetings', mutes: 't_mutes', tokens: 't_tokens', threads: 't_threads' }))
 vi.mock('./es.js', () => ({ es, ix }))
 const { discoverSearches, fit, prospectSearch, sameTags, toCard, toDiscover, toProspect, why } = await import('./discover.js')
 const { booths, discover, prospects } = await import('./routes/discover.js')
@@ -152,8 +152,10 @@ describe('routes', () => {
     kind = 'sponsor'
     es.msearch.mockResolvedValue({ responses: [{ hits: { hits: [{ _source: { scanned: 'a5' } }] } }, { hits: { hits: [{ _source: { attendee: 'a6' } }] } }] })
     es.search.mockResolvedValue({ hits: { hits: [hit('p1', person)] } })
+    es.mget.mockResolvedValue({ docs: [{ found: true, _source: { startedBy: 'me', status: 'request', firstText: 'Want the guide?', createdAt: '2026-11-09T10:00:00.000Z' } }] })
     const body = await (await call(prospects, '/prospects')).json() as any
-    expect(body.prospects).toMatchObject([{ source: 'match', card: { id: 'p1', name: null, stuckOn: 'sampling' } }])
+    expect(body.prospects).toMatchObject([{ source: 'match', card: { id: 'p1', name: null, stuckOn: 'sampling' }, request: { status: 'request', note: 'Want the guide?' } }])
+    expect(es.mget.mock.calls[0][0].docs).toEqual([{ _index: 't_threads', _id: 'me_p1' }]) // who already has a thread, read by id
     expect(JSON.stringify(es.search.mock.calls[0][0])).toContain('"must_not":[{"ids":{"values":["a5","a6"]}}]')
     es.msearch.mockResolvedValue({ responses: [{ hits: { hits: [] } }, { status: 503, error: {} }] })
     expect((await call(prospects, '/prospects')).status).toBe(500) // never guess who muted

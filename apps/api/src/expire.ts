@@ -1,10 +1,10 @@
-// Runs as a Kubernetes CronJob. Silence means no: unanswered booth requests are deleted,
+// Runs as a Kubernetes CronJob. Silence means no: unanswered message requests are deleted,
 // and a day after the event ends every photo leaves the vault.
 import { eventEndsAt } from './consent.js'
 import { es, ix } from './es.js'
 import { log } from './telemetry.js'
 
-const requests = await es.deleteByQuery({ index: ix.requests, query: { bool: { filter: [{ term: { status: 'pending' } }, { range: { expiresAt: { lt: 'now' } } }] } } })
+const requests = await es.deleteByQuery({ index: ix.threads, query: { bool: { filter: [{ term: { status: 'request' } }, { range: { expiresAt: { lt: 'now' } } }] } } })
 log.info({ deleted: requests.deleted }, 'deleted expired requests')
 
 if (Date.now() > eventEndsAt() + 864e5) {

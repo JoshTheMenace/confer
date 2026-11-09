@@ -61,33 +61,42 @@ export type Card = {
   stuckOn?: string
   pitch?: string
   attachment?: Attachment
+  thread?: { status: Thread['status']; startedBy: 'me' | 'them'; unread: number } // my conversation with them, if any
   starred?: boolean // viewer starred this booth
   muted?: boolean // viewer muted this booth
 }
 
-export type BoothRequest = {
-  id: string
-  booth: Card
-  note: string
-  attachment?: Attachment // delivered whether or not you share
-  why: Common[] // what you have in common with the booth's topics
-  status: 'pending' | 'shared' | 'ignored'
-  source: 'scan' | 'match' // they scanned you, or search matched you (only if openToBooths)
+/**
+ * A conversation between two profiles, and the center of the app. It starts as a MESSAGE REQUEST:
+ * the first message says why someone wants to connect, and the recipient decides whether to look, answer, ignore or mute.
+ * Chatting never reveals more than the card does: sharing your contact card stays a separate, deliberate tap.
+ */
+export type Thread = {
+  id: string // the other profile's id: the :id in /api/chats/:id
+  with: Card // through the same lens as everywhere else: a peer is a silhouette until they share, a booth is public
+  status: 'request' | 'open' | 'ignored' // request: waiting for the recipient. open: both can write.
+  startedBy: 'me' | 'them'
+  why: Common[] // what the two have in common, frozen when the request was sent
+  source: 'scan' | 'match' // they met, or search matched them (discoverable people; openToBooths for booths)
+  attachment?: Attachment // a booth's first message can carry one: yours whether or not you answer
+  last: { text: string; at: string; from: 'me' | 'them' }
+  unread: number
   createdAt: string
-  expiresAt: string
+  expiresAt?: string // an unanswered request is deleted after the event
 }
+export type Message = { id: string; from: 'me' | 'them'; text: string; at: string }
 
 /** shared: you gave your card. opened: they looked at it. exported: a booth took it home in its CSV. unshared: the deletion receipt. */
 export type Receipt = { id: string; type: 'shared' | 'opened' | 'exported' | 'unshared'; who: Card | null; fields: ContactField[]; at: string; traceId?: string }
 
 /** A booth's view of one attendee: anonymous until they share. `fit` is 0 to 100. */
-export type Visitor = { card: Card; fit: number; source: 'scan' | 'match'; scannedAt?: string; request?: { status: BoothRequest['status']; note: string; sentAt: string } }
+export type Visitor = { card: Card; fit: number; source: 'scan' | 'match'; scannedAt?: string; request?: { status: Thread['status']; note: string; sentAt: string } }
 export type Lead = { card: Card; sharedAt: string; via: 'manual' | 'auto' | 'request'; note?: string } // note: the request that won them over
 /** One lead's consent as Kubernetes holds it: a RoleBinding in the booth's namespace, and what Kubernetes answers for `export`. */
 export type BoothGrant = { attendeeId: string; namespace: string; binding: string; verbs: string[]; kubernetes: 'allowed' | 'denied' | 'unavailable' }
 export type BoothStats = {
-  scans: number; requests: number; pending: number; shared: number; ignored: number
-  shareRate: number // shared / requests, 0 to 1
+  scans: number; requests: number; pending: number; shared: number; ignored: number // requests = conversations this booth started
+  shareRate: number // people who shared their card after a request / requests, 0 to 1
   contentDelivered: number // people who received the attachment
   topInterests: Term[] // anonymous totals
   notes: { note: string; sent: number; shared: number; rate: number }[] // which pitch earns shares
@@ -127,11 +136,18 @@ export type Api = {
   'DELETE /api/people/:id/share': { res: { card: Card; receipt: Receipt } }
   'POST /api/people/share': { body: { ids: string[] }; res: { shared: number } } // end-of-event bulk share
 
-  'GET /api/inbox': { res: { requests: BoothRequest[]; receipts: Receipt[] } }
-  'POST /api/inbox/:id': { body: { action: 'share' | 'ignore' | 'mute'; fields?: ContactField[] }; res: { request: BoothRequest } } // :id is a request id
+  // The Inbox, the heart of the app. requests: message requests waiting for my answer. chats: open conversations and requests I sent, newest first.
+  'GET /api/inbox': { res: { requests: Thread[]; chats: Thread[]; receipts: Receipt[] } }
+
+  // :id is the other person's or booth's profile id.
+  'GET /api/chats/:id': { res: { thread: Thread; messages: Message[] } } // reading marks it read
+  // No conversation yet: this is a message request and `text` is the reason. Replying to a request accepts it.
+  'POST /api/chats/:id': { body: { text: string; attachment?: Attachment }; res: { thread: Thread; message: Message } }
+  // accept: open the chat. share: accept and share my card. ignore: hide it. mute: no more messages from this sender.
+  'POST /api/chats/:id/answer': { body: { action: 'accept' | 'share' | 'ignore' | 'mute'; fields?: ContactField[] }; res: { thread: Thread } }
 
   'GET /api/booth': { res: { leads: Lead[]; visitors: Visitor[]; stats: BoothStats } }
-  'POST /api/booth/requests': { body: { to: string[]; note: string; attachment?: Attachment }; res: { sent: number; autoShared: number } }
+  'POST /api/booth/requests': { body: { to: string[]; note: string; attachment?: Attachment }; res: { sent: number; autoShared: number } } // the same first message to several people
   'GET /api/booth/prospects': { res: { prospects: Visitor[] } }
   // CSV text (a download), one row per current lead. Headers: X-Confer-Gate (kubernetes | elasticsearch-only), X-Confer-Exported, X-Confer-Denied.
   'GET /api/booth/export': { res: string }

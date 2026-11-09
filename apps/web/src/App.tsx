@@ -1,69 +1,100 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { api, call, getToken, setToken, type Me } from './api'
-import { parseRoute, type Route } from './lib'
-import { Badge, Print } from './screens/Badge'
-import { Dex } from './screens/Dex'
-import { Inbox } from './screens/Inbox'
-import { Leads } from './screens/Leads'
-import { Onboarding } from './screens/Onboarding'
-import { Scan } from './screens/Scan'
-import { Loading, Problem } from './ui'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { Kind, Me } from '../../api/src/contract'
+import { call, flag, loadToken, type Persona, personas, saveToken, type Session } from './api'
+import { DiscoverScreen, InboxScreen, PeopleScreen, PersonScreen, ScanScreen } from './screens/attendee'
+import { BoothScreen, LeadsScreen, PulseScreen, PulseTotals, usePulse } from './screens/booth'
+import { How, MeScreen, Onboarding, PrintScreen } from './screens/profile'
+import { AppCtx, usePoll } from './ui'
 
-const tabs: Record<Me['kind'], [Route, string, string][]> = {
-  attendee: [['scan', '📷', 'Scan'], ['badge', '🪪', 'Badge'], ['dex', '📚', 'Dex'], ['inbox', '📨', 'Inbox']],
-  sponsor: [['scan', '📷', 'Scan'], ['leads', '📊', 'Leads'], ['badge', '🪪', 'Badge']],
-  organizer: [],
+const tabs: Record<Kind, [string, string, string][]> = {
+  attendee: [['scan', 'Scan', '◎'], ['people', 'People', '☺'], ['inbox', 'Inbox', '✉'], ['discover', 'Discover', '⌕'], ['me', 'Me', '▣']],
+  sponsor: [['scan', 'Scan', '◎'], ['leads', 'Leads', '✓'], ['booth', 'Booth', '▣']],
+  organizer: [['pulse', 'Pulse', '♥']],
 }
+const hashRoute = () => location.hash.replace(/^#\/?/, '')
 
-function useRoute() {
-  const [route, setRoute] = useState(() => parseRoute(location.hash))
-  useEffect(() => {
-    const on = () => setRoute(parseRoute(location.hash))
-    addEventListener('hashchange', on)
-    return () => removeEventListener('hashchange', on)
-  }, [])
-  return route
-}
-
-export function App() {
-  const [me, setMe] = useState<Me | null>() // undefined = loading, null = signed out
-  const [error, setError] = useState<string>()
-  const route = useRoute()
+/** One signed-in person. Standalone it follows the URL hash; on Stage each phone keeps its own route in memory. */
+export function App({ slot = 'solo', persona, start, inMemory }: { slot?: string; persona?: Persona; start?: string; inMemory?: boolean }) {
+  const [token, setTokenState] = useState<string | null>(() => (persona ? personas[persona][1] : loadToken(slot)))
+  const [me, setMe] = useState<Me>()
+  const [route, setRoute] = useState(start ?? (inMemory ? '' : hashRoute()))
+  const [said, setSaid] = useState('')
   const main = useRef<HTMLElement>(null)
+  const session = useMemo<Session>(() => ({ slot, token }), [slot, token])
+  const setToken = (t: string | null) => { saveToken(slot, t); setMe(undefined); setTokenState(t) }
+
+  useEffect(() => { if (persona) setToken(personas[persona][1]) }, [persona])
   useEffect(() => {
-    if (!getToken()) return setMe(null)
-    call(api.api.me.$get()).then((r) => setMe(r.me), (e: Error & { status?: number }) => {
-      if (e.status !== 401) return setError(e.message)
-      setToken('') // stale token: start over
-      setMe(null)
-    })
-  }, [])
-  // Move focus to the new screen so keyboard and screen reader users land on its heading.
-  useEffect(() => main.current?.focus({ preventScroll: false }), [route])
+    if (token) call(session, 'GET /api/me').then((r) => setMe(r.me), () => setToken(null))
+  }, [session])
+  useEffect(() => {
+    if (inMemory) return
+    const onHash = () => setRoute(hashRoute())
+    addEventListener('hashchange', onHash)
+    return () => removeEventListener('hashchange', onHash)
+  }, [inMemory])
+  // The Inbox tab lights up, and says so, wherever you are when a booth's request lands.
+  const inbox = usePoll(async () => (me?.kind === 'attendee' ? call(session, 'GET /api/inbox') : undefined), [session, me?.kind])
+  const pending = inbox.data?.requests.filter((r) => r.status === 'pending').length ?? 0
+  const before = useRef<number>(undefined)
+  useEffect(() => {
+    if (!inbox.data) return
+    if (before.current !== undefined && pending > before.current) setSaid('A booth sent you a request.')
+    before.current = pending
+  }, [inbox.data])
+  const first = useRef(true)
+  useEffect(() => {
+    // Move focus to the new screen's heading, but not on first paint (Stage has two Apps).
+    if (!first.current) main.current?.querySelector<HTMLElement>('h1')?.focus()
+    first.current = false
+  }, [route])
 
-  const screens: Record<Route, () => ReactNode> = {
-    scan: () => <Scan />, badge: () => <Badge />, print: () => <Print />,
-    dex: () => <Dex />, inbox: () => <Inbox />, leads: () => <Leads />,
-  }
+  if (!token) return <Onboarding session={session} onToken={setToken} />
+  if (!me) return <main className="screen" aria-busy="true"><p className="muted">Getting your badge…</p></main>
 
+  const go = (r: string) => (inMemory ? setRoute(r) : (location.hash = `/${r}`))
+  const mine = tabs[me.kind], [page, id] = (mine.some(([t]) => route.startsWith(t)) || route === 'print' ? route : mine[0][0]).split('/')
+  const screen = { scan: <ScanScreen />, people: id ? <PersonScreen key={id} id={id} /> : <PeopleScreen />, inbox: <InboxScreen />, discover: <DiscoverScreen />, me: <MeScreen />, print: <PrintScreen me={me} />, leads: <LeadsScreen />, booth: <BoothScreen />, pulse: <PulseScreen /> }[page]
   return (
-    <>
-      <header className="top" style={{ maxWidth: 640, margin: '0 auto', padding: '12px 16px 0' }}>
-        <span className="logo"><i aria-hidden />Dex</span>
-        {me && <span className="muted">#{me.tagId} · {me.displayName}</span>}
-      </header>
-      <main ref={main} tabIndex={-1} style={{ outline: 'none' }}>
-        {me === undefined ? (error ? <Problem error={error} /> : <Loading what="Dex" />) : me ? screens[route]() : <Onboarding />}
-      </main>
-      {me && (
-        <nav className="tabs" aria-label="Main">
-          {tabs[me.kind].map(([r, icon, label]) => (
-            <a key={r} href={`#/${r}`} aria-current={route === r || (r === 'badge' && route === 'print') ? 'page' : undefined}>
-              <span aria-hidden>{icon}</span>{label}
-            </a>
+    <AppCtx value={{ session, me, setMe, route, go, say: setSaid, signOut: () => setToken(null) }}>
+      <div className="app">
+        <header className="bar"><span className="wordmark">Confer</span><span className="whoami">{me.displayName} · badge {me.tagId}</span></header>
+        <main ref={main} className="screen" key={page + (id ?? '')}>{screen}</main>
+        <nav aria-label="Sections">
+          {mine.map(([t, label, icon]) => (
+            <a key={t} href={`#/${t}`} aria-current={page === t ? 'page' : undefined} onClick={(e) => { e.preventDefault(); go(t) }}><span aria-hidden>{icon}</span>{label}{t === 'inbox' && pending > 0 && <b className="dot" key={pending}>{pending}<span className="sr"> waiting</span></b>}</a>
           ))}
         </nav>
-      )}
-    </>
+        <p className="sr" aria-live="polite" role="status">{said}</p>
+      </div>
+    </AppCtx>
+  )
+}
+
+function Phone({ slot, initial, start }: { slot: string; initial: Persona; start?: string }) {
+  const [persona, setPersona] = useState(initial)
+  return (
+    <section className="phone-wrap" aria-label={`${personas[persona][0]}'s phone`}>
+      <div className="switch" role="group" aria-label="Who holds this phone">
+        {(Object.keys(personas) as Persona[]).map((p) => <button key={p} aria-pressed={p === persona} onClick={() => setPersona(p)}>{personas[p][0]}</button>)}
+      </div>
+      <div className="phone"><App key={persona} slot={slot} persona={persona} start={start} inMemory /></div>
+    </section>
+  )
+}
+
+/** The projector view: two live phones and the pulse strip, so the room sees cause and effect together. */
+export function Stage() {
+  const { data } = usePulse(useMemo(() => ({ slot: 'stage', token: personas.organizer[1] }), []))
+  return (
+    <div className="stage">
+      <header><p className="wordmark">Confer</p><p className="tagline">The front of your badge says hi. <em>Only you say yes.</em></p></header>
+      <div className="phones">
+        <How />
+        <Phone slot="left" initial={(flag('left') as Persona) ?? 'amara'} start={flag('l') ?? 'scan'} />
+        <Phone slot="right" initial={(flag('right') as Persona) ?? 'diego'} start={flag('r') ?? 'people'} />
+      </div>
+      <footer aria-label="Event Pulse, live">{data ? <PulseTotals totals={data.totals} /> : <p className="muted">Pulse is warming up…</p>}</footer>
+    </div>
   )
 }

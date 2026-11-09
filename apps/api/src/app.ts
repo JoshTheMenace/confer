@@ -1,10 +1,12 @@
 import { trace } from '@opentelemetry/api'
 import { Hono } from 'hono'
 import { routePath } from 'hono/route'
+import type { Api } from './contract.js'
 import { es } from './es.js'
 import { catchRoutes } from './routes/catch.js'
 import { consent } from './routes/consent.js'
 import { me } from './routes/me.js'
+import { pulse } from './routes/pulse.js'
 import { sponsor } from './routes/sponsor.js'
 import { booths, discover, prospects } from './routes/discover.js'
 
@@ -23,7 +25,10 @@ export const app = new Hono()
   })
   .get('/healthz', (c) => c.text('ok'))
   .get('/readyz', (c) => (esReady ? c.text('ok') : c.text('elasticsearch unreachable', 503)))
-  .get('/api/config', (c) => c.json({ dash0: { url: process.env.DASH0_WEB_ENDPOINT ?? '', token: process.env.DASH0_WEB_TOKEN ?? '' } }))
+  .get('/api/config', (c) => c.json({
+    dash0: { url: process.env.DASH0_WEB_ENDPOINT ?? '', token: process.env.DASH0_WEB_TOKEN ?? '' },
+    event: { name: process.env.EVENT_NAME ?? 'Cloud Native Hackathon', endsAt: process.env.EVENT_ENDS_AT ?? '2026-11-09T18:30:00-07:00' },
+  } satisfies Api['GET /api/config']['res']))
   .get('/api/status', async (c) => {
     const info = await es.info().catch(() => null)
     return c.json({
@@ -39,5 +44,6 @@ export const app = new Hono()
   .route('/api/discover', discover)
   .route('/api/booths', booths)
   .route('/api/booth', prospects)
+  .route('/api/pulse', pulse)
 
 export type AppType = typeof app

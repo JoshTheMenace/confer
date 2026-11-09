@@ -5,7 +5,7 @@ type Status = Awaited<ReturnType<Awaited<ReturnType<typeof api.api.status.$get>>
 
 export function App() {
   const [status, setStatus] = useState<Status>()
-  useEffect(() => void api.api.status.$get().then((r) => r.json()).then(setStatus), [])
+  useEffect(() => void api.api.status.$get().then((r) => r.json()).then(setStatus, () => setStatus({ elastic: null, dash0: false, openai: false })), [])
   return (
     <main style={{ fontFamily: 'system-ui', padding: 16 }}>
       <h1>Dex system check</h1>

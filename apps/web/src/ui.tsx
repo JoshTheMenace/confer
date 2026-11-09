@@ -1,5 +1,4 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import type { Card } from './api'
 import { approaches, contactHref, type Approach, type ContactField } from './lib'
 
 /** Loads data on mount; `reload` refetches. Errors become a readable message. */
@@ -60,37 +59,5 @@ export const Chips = ({ items, label, shared = [] }: { items: string[]; label: s
   </ul>
 )
 
-/** One person, shown only through what the API's consent lens let through. */
-export function PersonCard({ card, viewer, children, className = '' }: { card: Card; viewer: 'attendee' | 'sponsor'; children?: ReactNode; className?: string }) {
-  const { badge, interests, contact } = card
-  const open = Object.entries(contact ?? {}).filter(([, v]) => v) as [ContactField, string][]
-  return (
-    <article className={`card ${className}`} aria-labelledby={`p-${card.id}`}>
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <h3 id={`p-${card.id}`}>{badge.displayName}{card.kind === 'sponsor' && ' (sponsor)'}</h3>
-        <span className="muted">#{card.tagId}{badge.pronouns && ` · ${badge.pronouns}`}</span>
-      </div>
-      <ApproachBadge approach={badge.approach} big />
-      {badge.commPref && <p><span aria-hidden>💬 </span><strong>{badge.commPref}</strong></p>}
-      {interests ? (
-        <>
-          {interests.role && <p>{interests.role}</p>}
-          {!!interests.interests.length && <Chips items={interests.interests} label="Interests" />}
-          {!!interests.lookingFor.length && <p><span className="muted">Looking for:</span> {interests.lookingFor.join(', ')}</p>}
-          {interests.about && <p>{interests.about}</p>}
-        </>
-      ) : card.kind === 'attendee' && <p className="muted">Interests are private.</p>}
-      {card.kind === 'attendee' && (open.length ? (
-        <>
-          <p className="unlocked"><span aria-hidden>🔓 </span>Contact unlocked</p>
-          <ul className="contact">{open.map(([k, v]) => <li key={k}><a href={contactHref(k, v)} target="_blank" rel="noreferrer">{k}: {v}</a></li>)}</ul>
-        </>
-      ) : (
-        <p className="sealed"><span aria-hidden>🔒 </span>
-          {viewer === 'sponsor' ? 'Contact sealed. They decide in their inbox.' : 'Contact sealed. It opens when you catch each other.'}
-        </p>
-      ))}
-      {children}
-    </article>
-  )
-}
+/** Stands in for the v1 screens whose API routes are gone; the Silhouette redesign replaces them. */
+export const Rebuilding = () => <p role="status" className="muted">This screen is being rebuilt.</p>

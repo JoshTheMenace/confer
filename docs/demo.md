@@ -18,7 +18,8 @@ Everything in this repo was built to make these five minutes work. Present from 
 | 0:20 | "This is Confer. The front of your badge says hi. Only you say yes." | Stage mode is on screen. |
 | 0:30 | "Amara scans Diego's badge from across the table. Diego doesn't touch his phone." | Left phone: Scan. Hold the badge to the webcam (or type its number). |
 | 0:40 | "She gets a first name, a silhouette, and what they have in common. Not his job title, not his email, not even his full list of interests. And look at this one: she wrote OpenTelemetry, he wrote distributed tracing. Elasticsearch embeddings know that's the same conversation." | Point at the *related* pair. |
-| 1:05 | "Both of them now have the meeting in their list. Either one can share, whenever they like." | Right phone: People, open Amara, **Share**. |
+| 1:00 | "She wants to keep talking, so she says why. Like a LinkedIn invite, except Diego sees the reason and what they have in common before he gives up anything." | Left phone: **Connect**, pick the suggested opener, send. Right phone: the request arrives in the Inbox. |
+| 1:10 | "Share, ignore, or mute. He shares." | Right phone: **Share**. |
 | 1:15 | "Watch the left phone." *(pause)* "That's the moment. His silhouette fills in because he chose to." | The reveal plays on the left. |
 | 1:30 | "And he can take it back." | Right phone: **Unshare**. The photo drains, the receipt appears. "A receipt, backed by a trace id. Honest limit: we can't un-see a screenshot, and we say so." |
 | 1:50 | "Now the booth. Same badge, same scan." | Right phone: switch to **Elastic booth**, Scan Amara's badge. |

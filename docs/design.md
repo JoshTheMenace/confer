@@ -39,18 +39,7 @@ Deferred to the roadmap (say so honestly, do not fake): private forwarding email
 
 ## The five-minute demo (everything is built for this)
 
-Presented from a laptop on **Stage mode** (`#/stage`): two live phones side by side plus a live pulse strip, so the room sees cause and effect at once. Real phones join over HTTPS if the network allows; the laptop webcam scans a paper AprilTag.
-
-| Time | Beat | What the room sees |
-|---|---|---|
-| 0:00 | Hook | "Every badge scan today puts your email on a lead list." Paper badge held up. |
-| 0:20 | Meet | Left phone scans the badge from a metre away. A silhouette springs up: first name, "3 things in common", one marked *related*. The other person touched nothing. |
-| 1:00 | Share | Right phone taps Share. On the left, the silhouette fills in with the photo and the card appears. "Share back?" Then Unshare: the photo drains back to a silhouette and a deletion receipt prints. |
-| 1:40 | Booth | Booth phone scans the badge: interests and fit, no name. Sends a note plus a benchmark guide. The attendee's inbox lights up: content delivered, Share / Ignore / Mute. They share. |
-| 2:30 | Sponsor value | Booth dashboard: leads that said yes, share rate per pitch, anonymous prospects who match. |
-| 3:00 | Discover | "I'm stuck on tracing across 200 services" finds talks, booths and people (keyword + semantic + rerank on Elasticsearch). |
-| 3:30 | Operated, not just built | Event Pulse: live numbers ticking from the demo, health read from Dash0. Then the evidence: Agent0 found the 5-second write wait (4.8s to 1.0s); Radar's AI investigation; Gitar reviewed every PR and we pushed back with data. |
-| 4:30 | Inclusion and close | Silhouettes remove appearance bias; approach and communication preferences; scanning from afar; reduced motion. Roadmap: forwarding addresses. |
+Presented from a laptop on **Stage mode** (`#/stage`): two live phones side by side. A volunteer from the audience is handed the paper badge and signed up live on the right phone; the presenter scans them from the left. The script, the backups and the hard questions are in [demo.md](demo.md).
 
 ## App structure (web)
 

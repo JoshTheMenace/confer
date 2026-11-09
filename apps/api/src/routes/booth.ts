@@ -56,24 +56,25 @@ export const booth = new Hono<{ Variables: { me: Me } }>()
     const [[me], found] = await Promise.all([
       profilesById([viewer.id]),
       sources(ids.flatMap((id) => [
-        { _index: ix.profiles, _id: id }, { _index: ix.meetings, _id: pairId(viewer.id, id) },
+        { _index: ix.profiles, _id: id }, { _index: ix.meetings, _id: pairId(viewer.id, id) }, { _index: ix.meetings, _id: pairId(id, viewer.id) },
         { _index: ix.mutes, _id: pairId(id, viewer.id) }, { _index: ix.shares, _id: pairId(id, viewer.id) },
       ])),
     ])
     return span('request.send', { count: ids.length }, async () => {
       const targets = await Promise.all(ids.flatMap((id, i) => {
-        const [p, meeting, mute, share] = found.slice(i * 4, i * 4 + 4) as [Profile?, Meeting?, object?, Share?]
+        const [p, mine, theirs, mute, share] = found.slice(i * 5, i * 5 + 5) as [Profile?, Meeting?, Meeting?, object?, Share?]
         // Only attendees I scanned or who said matching booths may reach out; never anyone who muted me.
-        if (p?.kind !== 'attendee' || mute || !(meeting || p.openToBooths)) return []
+        if (p?.kind !== 'attendee' || mute || !(mine || theirs || p.openToBooths)) return []
         return [(async () => {
-          const why: Common[] = meeting ? swap(meeting.common) : await commonOf(p.interests, me.interests)
+          const why: Common[] = mine ? swap(mine.common) : theirs ? theirs.common : await commonOf(p.interests, me.interests)
+          const meeting = mine || theirs
           return { p: { ...p, id }, why, source: meeting ? ('scan' as const) : ('match' as const), shared: !!share, auto: !share && autoShares(p, viewer.id, why) }
         })()]
       }))
       const createdAt = new Date().toISOString(), auto = targets.filter((t) => t.auto)
       await Promise.all([
         bulk(targets.flatMap((t) => [
-          { index: { _index: ix.requests, _id: pairId(viewer.id, t.p.id) } },
+          { create: { _index: ix.requests, _id: pairId(viewer.id, t.p.id) } },
           {
             booth: viewer.id, attendee: t.p.id, note: body.note, attachment: body.attachment ?? me.attachment, why: t.why,
             status: t.shared || t.auto ? 'shared' : 'pending', source: t.source, createdAt, expiresAt: expiresAt(),

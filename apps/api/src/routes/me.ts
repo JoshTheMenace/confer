@@ -78,9 +78,12 @@ export const me = new Hono<{ Variables: { me: Session } }>()
     const { contact, photo, ...profile } = c.req.valid('json')
     const { id, kind } = c.var.me
     let interestEdits: number | undefined
+    let interestCondition: { if_seq_no: number; if_primary_term: number } | undefined
     if (profile.interests) {
       if (kind === 'attendee' && !attendeeInterests(profile.interests.length)) return c.json({ error: 'Pick 3 to 8 interests' }, 400)
-      const now = (await es.get<{ interests: string[]; interestEdits?: number }>({ index: ix.profiles, id, _source: ['interests', 'interestEdits'] }))._source!
+      const got = await es.get<{ interests: string[]; interestEdits?: number }>({ index: ix.profiles, id, _source: ['interests', 'interestEdits'] })
+      const now = got._source!
+      interestCondition = { if_seq_no: got._seq_no!, if_primary_term: got._primary_term! }
       if (JSON.stringify(now.interests) !== JSON.stringify(profile.interests)) {
         const edits = now.interestEdits ?? 0
         if (edits >= MAX_INTEREST_EDITS)
@@ -91,7 +94,7 @@ export const me = new Hono<{ Variables: { me: Session } }>()
     }
     await Promise.all([
       (contact || photo !== undefined) && es.update({ index: ix.vault, id, doc: { ...contact, ...(photo !== undefined && { photo: photo || null }) }, doc_as_upsert: true }),
-      es.update({ index: ix.profiles, id, doc: { ...profile, ...(photo !== undefined && { hasPhoto: !!photo }), ...(interestEdits && { interestEdits }) } }),
+      es.update({ index: ix.profiles, id, ...(interestCondition ?? {}), doc: { ...profile, ...(photo !== undefined && { hasPhoto: !!photo }), ...(interestEdits && { interestEdits }) } }),
     ])
     return c.json({ me: await myself(id) } satisfies Api['PATCH /api/me']['res'])
   })

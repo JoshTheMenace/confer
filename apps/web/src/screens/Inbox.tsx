@@ -13,17 +13,19 @@ function RequestCard({ r }: { r: Request }) {
   const [fields, setFields] = useState<Field[]>(r.fields) // all fields until a grant narrows them
   const [shared, setShared] = useState({ status: r.status, fields: r.fields })
   const [error, setError] = useState<string>()
+  const [saving, setSaving] = useState(false)
   const decide = async (decision: 'now' | 'later' | 'never') => {
+    setSaving(true)
     try {
       const { status } = await call(api.api.consent[':id'].$post({ param: { id: r.id }, json: { decision, ...(decision === 'now' && { fields }) } }))
       setShared({ status, fields })
       setError(undefined)
-    } catch (e) { setError((e as Error).message) }
+    } catch (e) { setError((e as Error).message) } finally { setSaving(false) }
   }
 
   return (
     <PersonCard card={r.sponsor} viewer="attendee">
-      <p role="status"><strong>{statusText[shared.status]}</strong>{shared.status === 'granted' && `: ${shared.fields.map((f) => fieldNames[f]).join(', ')}`}</p>
+      <p role="status"><strong>{saving ? 'Saving…' : statusText[shared.status]}</strong>{shared.status === 'granted' && `: ${shared.fields.map((f) => fieldNames[f]).join(', ')}`}</p>
       {(shared.status === 'pending' || shared.status === 'deferred') && <p className="hint">No answer by {when(r.expiresAt)} means no. The request is then deleted.</p>}
       <fieldset className="field">
         <legend>What to share</legend>
@@ -35,9 +37,9 @@ function RequestCard({ r }: { r: Request }) {
         ))}
       </fieldset>
       <div className="row">
-        <button type="button" className="btn-primary" disabled={!fields.length} onClick={() => decide('now')}>Share now</button>
-        <button type="button" onClick={() => decide('later')}>Decide after event</button>
-        <button type="button" onClick={() => decide('never')}>Never</button>
+        <button type="button" className="btn-primary" disabled={saving || !fields.length} onClick={() => decide('now')}>Share now</button>
+        <button type="button" disabled={saving} onClick={() => decide('later')}>Decide after event</button>
+        <button type="button" disabled={saving} onClick={() => decide('never')}>Never</button>
       </div>
       <Problem error={error} />
     </PersonCard>
@@ -58,7 +60,7 @@ export function Inbox() {
         : <p className="muted">No requests. Nobody gets your contact without asking.</p>}
 
       <h2>Who opened your contact</h2>
-      <p className="hint">Every time someone reads your sealed envelope, you get a receipt.</p>
+      <p className="hint">Whenever someone opens your sealed envelope, you get a receipt showing exactly what they saw.</p>
       <Problem error={receipts.error} />
       {receipts.data && (receipts.data.receipts.length ? (
         <ul className="card">

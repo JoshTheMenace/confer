@@ -66,9 +66,12 @@ export const cardsById = async (viewer: Viewer, ids: string[]) =>
 
 // The single vault read path: callers pass fields cardFor unlocked; every read leaves a receipt.
 export async function openVault(attendee: string, viewer: string, fields: ContactField[]): Promise<Contact> {
-  const doc = await es.get<Contact>({ index: 'vault', id: attendee, _source_includes: fields }, { ignore: [404] })
-  await es.index({ index: 'receipts', document: { attendee, viewer, fields, at: new Date().toISOString() } })
-  return doc._source ?? {}
+  const contact = (await es.get<Contact>({ index: 'vault', id: attendee, _source_includes: fields }, { ignore: [404] }))._source ?? {}
+  // Receipt = what was actually seen (only filled-in fields), one per viewer and field set, stamped with the latest read.
+  const seen = fields.filter((f) => contact[f])
+  if (viewer !== attendee && seen.length)
+    await es.index({ index: 'receipts', id: `${attendee}_${viewer}_${seen.join(',')}`, document: { attendee, viewer, fields: seen, at: new Date().toISOString() } })
+  return contact
 }
 
 export const reveal = async (card: Card, viewer: string): Promise<Card> =>

@@ -78,7 +78,21 @@ describe('cardsFor (sealed envelope)', () => {
     vi.mocked(es.mget).mockResolvedValueOnce({ docs: [{ found: true, _source: {} }] } as any).mockResolvedValueOnce({ docs: [missing] } as any)
     const [card] = await cardsFor(ben, [ana])
     expect(card.contact).toEqual({ email: 'a@x.io' })
-    expect(vi.mocked(es.index).mock.calls[0][0]).toMatchObject({ index: 'receipts', document: { attendee: 'ana', viewer: 'ben' } })
+    expect(vi.mocked(es.index).mock.calls[0][0]).toMatchObject({ index: 'receipts', id: 'ana_ben_email', document: { attendee: 'ana', viewer: 'ben', fields: ['email'] } })
+  })
+
+  test('receipts list only fields that exist, and re-reads update one receipt instead of piling up', async () => {
+    vi.mocked(es.mget).mockResolvedValue({ docs: [{ found: true, _source: {} }] } as any)
+    await cardsFor(ben, [ana])
+    await cardsFor(ben, [ana])
+    const ids = vi.mocked(es.index).mock.calls.map(([r]) => (r as any).id)
+    expect(new Set(ids)).toEqual(new Set(['ana_ben_email'])) // ana has no linkedin/github, so none are claimed as seen
+  })
+
+  test('reading your own contact writes no receipt', async () => {
+    const { openVault } = await import('./consent.js')
+    await openVault('ana', 'ana', ['email'])
+    expect(es.index).not.toHaveBeenCalled()
   })
 
   test('sponsor: pending request stays sealed, granted request reads only granted fields', async () => {

@@ -1,10 +1,8 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { cardFor, cardsFor, expiresAt, lowestFreeTag, sponsorAggQuery, tally, type Profile } from './consent.js'
 import { es } from './es.js'
-import { catchRoutes } from './routes/catch.js'
-import { consent as consentRoutes } from './routes/consent.js'
 
-vi.mock('./es.js', () => ({ es: { bulk: vi.fn(), get: vi.fn(), index: vi.fn(), mget: vi.fn(), search: vi.fn(), update: vi.fn() } }))
+vi.mock('./es.js', () => ({ es: { get: vi.fn(), index: vi.fn(), mget: vi.fn() } }))
 
 const person = (id: string, over: Partial<Profile> = {}): Profile => ({
   id, kind: 'attendee', tagId: 1, displayName: id, approach: 'open', commPref: "I'm Deaf, text me",
@@ -80,7 +78,7 @@ describe('cardsFor (sealed envelope)', () => {
     vi.mocked(es.mget).mockResolvedValueOnce({ docs: [{ found: true, _source: {} }] } as any).mockResolvedValueOnce({ docs: [missing] } as any)
     const [card] = await cardsFor(ben, [ana])
     expect(card.contact).toEqual({ email: 'a@x.io' })
-    expect(vi.mocked(es.index).mock.calls[0][0]).toMatchObject({ index: 'receipts', id: 'ana_ben_email', document: { attendee: 'ana', viewer: 'ben', fields: ['email'] }, refresh: 'wait_for' })
+    expect(vi.mocked(es.index).mock.calls[0][0]).toMatchObject({ index: 'receipts', id: 'ana_ben_email', document: { attendee: 'ana', viewer: 'ben', fields: ['email'] } })
   })
 
   test('receipts list only fields that exist, and re-reads update one receipt instead of piling up', async () => {
@@ -106,40 +104,6 @@ describe('cardsFor (sealed envelope)', () => {
     await cardsFor(acme, [ana])
     expect(vi.mocked(es.get).mock.calls[0][0]).toMatchObject({ index: 'vault', id: 'ana', _source_includes: ['email'] })
     expect(es.index).toHaveBeenCalledOnce()
-  })
-})
-
-describe('search-backed write visibility', () => {
-  const auth = { authorization: 'Bearer token' }
-
-  test('catch writes refresh the dex, sponsor scans, and pending consent requests', async () => {
-    vi.clearAllMocks()
-    vi.mocked(es.get).mockResolvedValue({ _source: { profile: 'sponsor', kind: 'sponsor', tagId: 580 } } as any)
-    vi.mocked(es.search).mockResolvedValue({ hits: { hits: [{ _id: 'other', _source: { kind: 'attendee', tagId: 2, displayName: 'Other', approach: 'open', interestsVisibleTo: ['peers'] } }] } } as any)
-    vi.mocked(es.bulk).mockResolvedValue({ items: [{ create: { status: 201 } }] } as any)
-    vi.mocked(es.mget).mockResolvedValue({ docs: [{ found: false }] } as any)
-
-    const response = await catchRoutes.request('/', {
-      method: 'POST', headers: { ...auth, 'content-type': 'application/json' }, body: JSON.stringify({ tagIds: [2] }),
-    })
-
-    expect(response.status).toBe(200)
-    expect(vi.mocked(es.bulk).mock.calls[0][0]).toMatchObject({ refresh: 'wait_for' })
-  })
-
-  test('consent decisions refresh sponsor leads after an allowed attendee decision', async () => {
-    vi.clearAllMocks()
-    vi.mocked(es.get)
-      .mockResolvedValueOnce({ _source: { profile: 'attendee', kind: 'attendee', tagId: 1 } } as any)
-      .mockResolvedValueOnce({ _id: 'request-1', _source: { attendee: 'attendee' } } as any)
-    vi.mocked(es.update).mockResolvedValue({} as any)
-
-    const response = await consentRoutes.request('/request-1', {
-      method: 'POST', headers: { ...auth, 'content-type': 'application/json' }, body: JSON.stringify({ decision: 'now' }),
-    })
-
-    expect(response.status).toBe(200)
-    expect(vi.mocked(es.update).mock.calls[0][0]).toMatchObject({ index: 'consent_requests', id: 'request-1', refresh: 'wait_for' })
   })
 })
 

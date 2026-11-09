@@ -33,7 +33,6 @@ export const catchRoutes = new Hono<{ Variables: { me: Me } }>()
           { sponsor: me.id, attendee: p.id, fields: contactFields, status: 'pending', createdAt: at, expiresAt: expiresAt() },
         ]),
       ],
-      refresh: 'wait_for',
     })
     catches.add(res.items.slice(0, caught.length).filter((i) => i.create?.status === 201).length, { kind })
     return c.json({ cards: await cardsFor(me, caught) })

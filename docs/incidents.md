@@ -28,7 +28,7 @@ Real problems we hit while building, and how we found them.
 - **Symptom:** the consent inbox took seconds to save; API p95 was about 1.8s.
 - **Investigation:** we asked **Agent0** through the Dash0 MCP server (`runTask`) to find the slowest routes and which Elasticsearch calls dominate them. Full report: [evidence/agent0-latency.md](evidence/agent0-latency.md).
 - **Root cause (Agent0):** every write used `refresh: 'wait_for'`. On Elastic Serverless the refresh interval is 5s (also the minimum), so each write blocked 0–5s, which was 50–76% of every slow request. Also: two sequential profile searches per request, readiness probes pinging Elasticsearch every time, and server spans without `http.route`.
-- **Fix:** no `wait_for` on writes whose follow-up reads use real-time `get`/`mget`, including login, which now resolves a token through a `tokens` doc keyed by its hash. Search-backed lists need immediate visibility, so writes to `catches`, `consent_requests`, and `receipts` use `refresh: 'wait_for'`; other writes remain unblocked. Independent signup writes run in parallel. Readiness is checked in the background. Server spans are named by route.
+- **Fix:** no `wait_for` on user-facing writes. Reads right after a write go by id (real-time `get`/`mget`, never a search), including login, which now resolves a token through a `tokens` doc keyed by its hash. Independent signup writes run in parallel. Readiness is checked in the background. Server spans are named by route.
 - **Measured live (laptop → Elastic Serverless):**
 
 | Route | Before (Agent0) | After |

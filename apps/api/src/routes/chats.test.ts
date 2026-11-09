@@ -93,6 +93,7 @@ describe('routes', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(es.bulk).mockResolvedValue({ items: [] } as any)
+    vi.mocked(es.update).mockResolvedValue({} as any)
   })
 
   test('a first message becomes a request; a stranger who is not discoverable gets a plain 403', async () => {
@@ -134,6 +135,15 @@ describe('routes', () => {
     expect((await (await call('/ben', { text: 'Hi Ben' })).json()).thread).toMatchObject({ status: 'open', startedBy: 'them', last: { text: 'Hi Ben', from: 'me' } })
     expect(es.update).toHaveBeenCalledTimes(1)
     expect(vi.mocked(es.update).mock.calls[0][0]).toMatchObject({ id: 'ana_ben', script: { params: { open: true, read: 'readA', m: { from: 'ana', text: 'Hi Ben' } } } })
+  })
+
+  test('reading a chat marks it read for the reader only, and only when something is unread', async () => {
+    as(ana, ben, { thread: doc() })
+    expect(await (await call('/ben')).json()).toMatchObject({ thread: { id: 'ben', unread: 0, startedBy: 'them' }, messages: [{ from: 'them', text: 'Hi Ana' }] })
+    expect(vi.mocked(es.update).mock.calls[0][0]).toMatchObject({ index: 'threads', id: 'ana_ben', doc: { readA: expect.any(String) } })
+    as(ben, ana, { thread: doc() })
+    await call('/ana')
+    expect(es.update).toHaveBeenCalledTimes(1)
   })
 
   test('only the recipient of a request may answer it', async () => {

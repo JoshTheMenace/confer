@@ -5,7 +5,7 @@ import { auth, type Me } from '../auth.js'
 import { cannotStart, cards, giveCards, pairId, readKey, relations, send, threadId, toMessages, toThread, visible } from '../consent.js'
 import { contactFields, type Api } from '../contract.js'
 import { es, ix, refreshSoon } from '../es.js'
-import { requests, span } from '../telemetry.js'
+import { log, requests, span } from '../telemetry.js'
 import { attachment } from './me.js'
 import { tooFast } from './scan.js'
 
@@ -22,8 +22,11 @@ export const chats = new Hono<{ Variables: { me: Me } }>()
     if (!t || !visible(t, viewer.id).length) return c.json(none, 404)
     const [card] = await cards({ ...viewer, starred: me.starred }, [rel])
     const thread = toThread(t, viewer.id, card)
-    // Polled every 2 seconds: only write the read marker when there is something new to mark.
-    if (thread.unread) await es.update({ index: ix.threads, id: threadId(viewer.id, rel.subject.id), retry_on_conflict: 3, doc: { [readKey(t, viewer.id)]: new Date().toISOString() } })
+    // Polled every 2 seconds: the read marker is written only when there is something new, and the reader does not wait for it.
+    if (thread.unread) {
+      void es.update({ index: ix.threads, id: threadId(viewer.id, rel.subject.id), retry_on_conflict: 3, doc: { [readKey(t, viewer.id)]: new Date().toISOString() } })
+        .catch((err) => log.warn({ err: err?.name }, 'read marker not saved'))
+    }
     return c.json({ thread: { ...thread, unread: 0 }, messages: toMessages(t, viewer.id) } satisfies Api['GET /api/chats/:id']['res'])
   })
   .post('/:id', zValidator('json', z.object({ text: z.string().trim().min(1).max(500), attachment: attachment.optional() })), async (c) => {

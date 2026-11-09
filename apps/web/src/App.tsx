@@ -22,7 +22,7 @@ const tabs: Record<Kind, [route: string, label: string, icon: IconName][]> = {
 const hashRoute = () => location.hash.replace(/^#\/?/, '')
 
 /** One signed-in person. Standalone it follows the URL hash; on Stage each phone keeps its own route in memory. */
-export function App({ slot = 'solo', persona, start, inMemory }: { slot?: string; persona?: Persona; start?: string; inMemory?: boolean }) {
+export function App({ slot = 'solo', persona, start, inMemory, onName }: { slot?: string; persona?: Persona; start?: string; inMemory?: boolean; onName?: (name?: string) => void }) {
   const [token, setTokenState] = useState<string | null>(() => (persona ? personas[persona][1] : loadToken(slot)))
   const [me, setMe] = useState<Me>()
   const [problem, setProblem] = useState<string>()
@@ -35,6 +35,7 @@ export function App({ slot = 'solo', persona, start, inMemory }: { slot?: string
   const setToken = (t: string | null) => { saveToken(slot, t); known.current = undefined; setMe(undefined); setTokenState(t) }
 
   useEffect(() => { if (persona) setToken(personas[persona][1]) }, [persona])
+  useEffect(() => onName?.(me?.displayName), [me])
   useEffect(() => {
     if (!token) return
     setProblem(undefined)
@@ -79,11 +80,13 @@ export function App({ slot = 'solo', persona, start, inMemory }: { slot?: string
     first.current = false
   }, [route])
 
-  if (!token) return <Onboarding session={session} onToken={setToken} />
+  // On Stage each phone already sits in its own labelled section, so the page keeps a single main.
+  const Main = (inMemory ? 'div' : 'main') as 'main'
+  if (!token) return <Onboarding session={session} onToken={setToken} stage={inMemory} />
   if (!me) return (
-    <main className="screen" aria-busy={!problem}>
+    <Main className="screen" aria-busy={!problem}>
       {problem ? <><Problem error={problem} retry={() => setTries(tries + 1)} />{!persona && <button type="button" className="btn" onClick={() => setToken(null)}>Sign in as someone else</button>}</> : <p className="muted">Getting your badge…</p>}
-    </main>
+    </Main>
   )
 
   const go = (r: string) => (inMemory ? setRoute(r) : (location.hash = `/${r}`))
@@ -96,9 +99,9 @@ export function App({ slot = 'solo', persona, start, inMemory }: { slot?: string
     <AppCtx value={{ session, me, setMe, route, go, say: setSaid, signOut: () => setToken(null), stage: !!inMemory, inbox, people }}>
       <div className="app">
         <header className="bar"><span className="wordmark">Confer</span><span className="whoami">{me.displayName} · badge {me.tagId}</span></header>
-        <main ref={main} className="screen" key={page + (id ?? '')}>{screen}</main>
+        <Main ref={main} className="screen" key={page + (id ?? '')}>{screen}</Main>
         <p className={`toast ${said ? 'on' : ''}`} aria-live="polite" role="status">{said}</p>
-        <nav aria-label="Sections">
+        <nav aria-label={inMemory ? `Sections, ${slot.split('-')[0]} phone` : 'Sections'}>
           {mine.map(([t, label, icon]) => (
             <a key={t} href={`#/${t}`} aria-current={page === t ? 'page' : undefined} onClick={(e) => { e.preventDefault(); go(t) }}>
               <Icon name={icon} />{label}{t === 'inbox' && waiting > 0 && <b className="dot" key={waiting}>{waiting}<span className="sr"> waiting</span></b>}
@@ -111,13 +114,16 @@ export function App({ slot = 'solo', persona, start, inMemory }: { slot?: string
 }
 
 function Phone({ slot, initial, start }: { slot: string; initial: Persona; start?: string }) {
-  const [persona, setPersona] = useState(initial)
+  const [persona, setPersona] = useState<Persona | 'new'>(initial)
+  const [newName, setNewName] = useState<string>()
+  const fresh = persona === 'new' // a volunteer signing up live: their own token slot, so switching persona and back keeps them
   return (
-    <section className="phone-wrap" aria-label={`${personas[persona][0]}'s phone`}>
+    <section className="phone-wrap" aria-label={`${fresh ? newName ?? 'New person' : personas[persona][0]}'s phone`}>
       <fieldset className="switch"><legend className="sr">Who holds this phone</legend>
         {(Object.keys(personas) as Persona[]).map((p) => <button type="button" key={p} aria-pressed={p === persona} onClick={() => setPersona(p)}>{p === 'booth' ? 'Booth' : personas[p][0]}</button>)}
+        <button type="button" aria-pressed={fresh} onClick={() => setPersona('new')}>{newName ?? 'New'}</button>
       </fieldset>
-      <div className="phone"><App key={persona} slot={slot} persona={persona} start={persona === initial ? start : undefined} inMemory /></div>
+      <div className="phone"><App key={persona} slot={fresh ? `${slot}-new${isMock ? '-mock' : ''}` : slot} persona={fresh ? undefined : persona} start={persona === initial ? start : fresh ? 'inbox' : undefined} inMemory onName={fresh ? setNewName : undefined} /></div>
     </section>
   )
 }

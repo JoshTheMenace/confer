@@ -2,7 +2,7 @@ import { type FormEvent, useState } from 'react'
 import type { Card } from '../../../api/src/contract'
 import { call } from '../api'
 import { openers, threadState } from '../links'
-import { nameOf, Problem, useAct, useApp } from '../ui'
+import { keepCard, nameOf, Problem, useAct, useApp } from '../ui'
 
 /** The main action on anyone you met: one line saying why. It lands as a message request; no card moves. */
 export function Connect({ card, onSent }: { card: Card; onSent?: () => void }) {
@@ -18,7 +18,7 @@ export function Connect({ card, onSent }: { card: Card; onSent?: () => void }) {
   )
   const send = (e: FormEvent) => {
     e.preventDefault()
-    act.run(() => call(session, 'POST /api/chats/:id', { params: { id: card.id }, body: { text: text.trim() } }).then(() => { say(`Request sent to ${name}. They decide whether to answer.`); onSent?.() }))
+    act.run(() => call(session, 'POST /api/chats/:id', { params: { id: card.id }, body: { text: text.trim() } }).then(() => { keepCard(session, { ...card, thread: { status: 'request', startedBy: 'me', unread: 0 } }); say(`Request sent to ${name}. They decide whether to answer.`); onSent?.() }))
   }
   return (
     <form className="connect" onSubmit={send}>

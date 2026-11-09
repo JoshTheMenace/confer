@@ -9,9 +9,10 @@ export function PersonScreen({ id }: { id: string }) {
   const [fields, setFields] = useState<ContactField[]>(me.shareFields)
   const [receipt, setReceipt] = useState<Receipt>()
   const act = useAct()
-  const found = data?.people.find((p) => p.id === id)
-  if (found) keepCard(session, found)
-  const card = found ?? keptCard(session, id) // the list is a search that lags a write: keep the card we already have
+  const found = data?.people.find((p) => p.id === id), kept = keptCard(session, id)
+  // The list is a search that lags a write: keep the card we already have, and the request we just sent.
+  const card = found && (found.thread || !kept?.thread) ? found : kept
+  if (found && card === found) keepCard(session, found)
   useEffect(() => { if (flag('unshare') !== null && card?.iShared) unshare() }, [card?.iShared?.at]) // deep link: plays Unshare once
   if (!card) return <><h1 tabIndex={-1}>Person</h1><Problem error={error ?? (data && 'You have not met this person yet.')} /><Loading of={{ data, error }} /><button type="button" className="btn" onClick={() => go('people')}>Back to Recently met</button></>
   const name = nameOf(card), they = card.theyShared

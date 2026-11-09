@@ -6,7 +6,7 @@ import { ApproachChip, Badge, CommonList, keepCard, nameOf, Portrait, Problem, u
 import { Connect } from './Connect'
 
 const tagList = (v: string | null) => (v ?? '').split(',').map(Number).filter(Boolean)
-const demoBadges: [string, number][] = [['Amara', 500], ['Diego', 501]]
+const demoBadges: [string, number][] = [['Amara', 500], ['Diego', isMock ? 501 : 540]] // in the seeded data Diego wears 540: 501 is the paper badge a volunteer claims
 
 /** A booth's first message to someone it just scanned: the note plus the attachment. It sees topics and fit, never a name. */
 function BoothNote({ card }: { card: Card }) {
@@ -54,7 +54,7 @@ export function ScanScreen() {
     say(cards.map((c) => `Met ${who(c)}: ${c.common.length} things in common.`).join(' '))
   }))
   useEffect(() => { if (tagList(flag('catch')).length && !stage) onCatch(tagList(flag('catch')), 'manual') }, []) // deep link: ?catch=501
-  const lookUp = (e: FormEvent) => { e.preventDefault(); if (Number(typed)) onCatch([Number(typed)], 'manual'); setTyped('') }
+  const lookUp = (e: FormEvent) => { e.preventDefault(); if (/^\d+$/.test(typed.trim()) && Number(typed) <= 586) onCatch([Number(typed)], 'manual'); setTyped('') }
   if (cards.length) return (
     <>
       <h1 tabIndex={-1} className="sr">{cards.length > 1 ? `Met ${cards.length} people` : `Met ${who(cards[0])}`}</h1>

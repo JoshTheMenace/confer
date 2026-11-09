@@ -137,6 +137,8 @@ table { border-collapse: collapse; width: 100%; font-size: .9rem } th, td { text
 .how li::before { content: counter(how); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 4px; background: var(--solid); color: var(--on-solid); display: grid; place-items: center; font-weight: 700 }
 .steps { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .9rem; color: var(--soft); font-weight: 700 } .steps [aria-current] { color: var(--ink); border-bottom: 3px solid var(--mark) }
 .onboarding { max-width: 480px; margin: 0 auto; min-height: 100dvh } .selfie { width: 72px; height: 72px; border-radius: 5px; object-fit: cover }
+/* The preview is mirrored like a mirror; the saved photo is not. */
+.camera video { display: block; width: 100%; margin-bottom: 8px; border-radius: 5px; background: #061b40; transform: scaleX(-1) }
 .mine { align-items: center; text-align: center } .seen { display: flex; gap: 12px; align-items: center; text-align: left } .sil { width: 64px; border-radius: 5px } .hello { font-size: 1.3rem } .tag { background: #fff; padding: 8px; border-radius: 4px; border: 2px solid #000; line-height: 0 }
 details { border-top: 1px solid var(--line); padding-top: 8px } summary { min-height: 44px; display: flex; align-items: center; font-weight: 700; cursor: pointer } details[open] { display: flex; flex-direction: column; gap: 12px }
 
@@ -178,6 +180,8 @@ details { border-top: 1px solid var(--line); padding-top: 8px } summary { min-he
 .phone-wrap { display: flex; flex-direction: column; gap: 8px; align-items: center; min-height: 0 }
 .switch { display: flex; gap: 4px } .switch button { min-height: 44px; padding: 0 8px; border-radius: 4px; border: 2px solid #fff; background: transparent; color: #fff; font: inherit; font-weight: 700; font-size: 14px; letter-spacing: .05em; text-transform: uppercase; cursor: pointer } .switch [aria-pressed='true'] { background: var(--yellow); border-color: var(--yellow); color: #212326 }
 .phone { width: 390px; flex: 1; min-height: 0; border: 9px solid var(--night); border-radius: 30px; overflow: hidden; background: var(--bg); color: var(--ink); box-shadow: 0 18px 40px #030e2873 } .phone .app { height: 100% } .phone .onboarding { min-height: 0; height: 100%; overflow-y: auto }
+/* On Stage, Next and Get my badge stay in reach while the form scrolls. */
+.phone .onboarding form > .row.end { position: sticky; bottom: 0; margin: 0 -8px; padding: 8px; background: var(--paper) }
 /* A smaller projector or laptop: narrower phones and a two-column strip, so the header keeps its room. */
 @media (min-width: 1101px) and (max-width: 1340px) { .stage { grid-template-columns: minmax(0, 1fr) 350px 350px; gap: 0 20px; padding: 14px 24px } .phone { width: 100% } .phone-wrap { min-width: 0; align-items: stretch } .switch { justify-content: center } .switch button { padding: 0 5px; letter-spacing: 0 } .stage > header { gap: 8px; padding: 6px 0 } .stage > header .wordmark { font-size: min(6.4vw, 84px) } .tagline { letter-spacing: .12em } .story li { padding: 5px 0 } .strip { gap: 6px } .strip .stat { padding: 6px 10px } }
 @media (max-width: 1100px) { .stage { grid-template-columns: 1fr 1fr; grid-template-rows: auto 760px; height: auto; overflow: visible } .stage > header { grid-column: 1 / -1 } .phone { width: 100% } }

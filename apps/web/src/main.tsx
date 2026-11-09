@@ -8,7 +8,7 @@ import './styles.css'
 // Runtime config from the API so one image works in every environment. Best effort: the app never waits on it.
 if (!isMock)
   call({ slot: 'config', token: null }, 'GET /api/config')
-    .then(({ dash0 }) => dash0.token && init({ serviceName: 'confer-web', endpoint: { url: dash0.url, authToken: dash0.token } }))
+    .then(({ dash0 }) => dash0.token && init({ serviceName: 'dex-web', endpoint: { url: dash0.url, authToken: dash0.token } }))
     .catch((err) => console.warn('telemetry config unavailable', err))
 else if (flag('demo')) (await import('./mock/server')).mock.demo(flag('demo')!)
 

@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react'
 import type { Api, Approach, AutoShare, Me } from '../../../api/src/contract'
 import { call, isMock, personas, type Session } from '../api'
 import { BadgeSheet, TagSvg } from '../scan'
@@ -7,23 +7,51 @@ import { Silhouette } from '../Silhouette'
 import { approachLabel, FieldPicker, Problem, useAct, useApp } from '../ui'
 
 export type Draft = Api['POST /api/me/signup']['body']
-type Step = { draft: Draft; set: (patch: Partial<Draft>) => void }
+type Step = { draft: Draft; set: (patch: Partial<Draft>) => void; children?: ReactNode }
 
-const suggestions = ['OpenTelemetry', 'Kubernetes', 'Rust', 'Postgres', 'AI agents', 'Developer experience', 'Incident response', 'Vector search', 'Accessibility', 'Platform engineering', 'SLOs', 'Open source']
+const suggestions = ['Kubernetes', 'OpenTelemetry', 'Distributed tracing', 'Observability', 'Platform engineering', 'Security', 'eBPF', 'AI', 'Search', 'Developer experience', 'Rust', 'Postgres', 'Incident response', 'Accessibility', 'SLOs', 'Open source']
 const blank: Draft = { displayName: '', approach: 'open', interests: [], lookingFor: [], discoverable: true, openToBooths: true, boothsSeeName: false, autoShare: 'off', shareFields: ['email'], contact: {} }
 
-/** Shrinks a selfie in the browser to at most 320px JPEG before it goes anywhere. */
-async function resize(file: File) {
-  const img = await createImageBitmap(file), k = Math.min(1, 320 / Math.max(img.width, img.height))
+/** Shrinks a selfie (a chosen file or a camera frame) in the browser to at most 320px JPEG before it goes anywhere. */
+async function resize(source: File | HTMLVideoElement) {
+  const img = await createImageBitmap(source), k = Math.min(1, 320 / Math.max(img.width, img.height))
   const canvas = Object.assign(document.createElement('canvas'), { width: Math.round(img.width * k), height: Math.round(img.height * k) })
   canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
   return canvas.toDataURL('image/jpeg', 0.8)
 }
 
-function You({ draft, set }: Step) {
+/** The device camera, inline: a live preview, one button takes the picture, and the camera is off again. */
+function Camera({ onPhoto, onClose }: { onPhoto: (photo: string) => void; onClose: (why?: string) => void }) {
+  const video = useRef<HTMLVideoElement>(null), take = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    let stream: MediaStream | undefined, gone = false
+    const stop = () => { for (const t of stream?.getTracks() ?? []) t.stop() }
+    const none = () => onClose('The camera is not available or was not allowed. Choose a picture instead.')
+    if (!navigator.mediaDevices?.getUserMedia) return none()
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } }).then((s) => {
+      stream = s
+      if (gone || !video.current) return stop()
+      video.current.srcObject = s
+      take.current?.focus()
+    }, none)
+    return () => { gone = true; stop() }
+  }, [])
+  return (
+    <div className="camera">
+      <video ref={video} autoPlay muted playsInline aria-label="Camera preview" />
+      <div className="row">
+        <button ref={take} type="button" className="btn primary" onClick={() => resize(video.current!).then(onPhoto, () => onClose('The camera was not ready. Try again.'))}>Take photo</button>
+        <button type="button" className="btn" onClick={() => onClose()}>Cancel</button>
+      </div>
+    </div>
+  )
+}
+
+function You({ draft, set, children }: Step) {
   return (
     <>
       <label>First name or nickname<input required autoComplete="given-name" value={draft.displayName} onChange={(e) => set({ displayName: e.target.value })} /></label>
+      {children}
       <label>Pronouns <small>optional</small><input value={draft.pronouns ?? ''} onChange={(e) => set({ pronouns: e.target.value })} placeholder="she/her, they/them…" /></label>
       <fieldset className="checks">
         <legend>How should people approach you?</legend>
@@ -51,7 +79,7 @@ function Interests({ draft, set }: Step) {
         </div>
       </fieldset>
       <div className="row">
-        <label>Add your own<input value={extra} onChange={(e) => setExtra(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), add())} /></label>
+        <label>Add your own<input value={extra} onChange={(e) => setExtra(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && extra.trim() && (e.preventDefault(), add())} /></label>
         <button type="button" className="btn" onClick={add}>Add</button>
       </div>
       <label>What are you stuck on? <small>optional. Only booths you allow can see it.</small><input value={draft.stuckOn ?? ''} onChange={(e) => set({ stuckOn: e.target.value })} placeholder="Tracing across 200 services" /></label>
@@ -61,21 +89,28 @@ function Interests({ draft, set }: Step) {
 
 function Sharing({ draft, set }: Step) {
   const [problem, setProblem] = useState<string>()
+  const [cam, setCam] = useState(false)
+  const shoot = useRef<HTMLButtonElement>(null)
+  const close = (why?: string) => { setCam(false); setProblem(why); setTimeout(() => shoot.current?.focus()) }
   return (
     <>
+      <fieldset>
+        <legend>Selfie <small>optional. Only people you share with see it.</small></legend>
+        {cam ? <Camera onPhoto={(photo) => { set({ photo }); close() }} onClose={close} /> : (
+          <div className="row">
+            {draft.photo && <img className="selfie" src={draft.photo} alt="Your selfie" />}
+            <button ref={shoot} type="button" className="btn primary" onClick={() => { setProblem(undefined); setCam(true) }}>{draft.photo ? 'Retake photo' : 'Take photo'}</button>
+            {draft.photo && <button type="button" className="btn" onClick={() => set({ photo: '' })}>Remove</button>}
+          </div>
+        )}
+        <Problem error={problem} />
+        <label>Choose a picture instead<input type="file" accept="image/*" onChange={(e) => e.target.files?.[0] && resize(e.target.files[0]).then((photo) => set({ photo }), () => setProblem('That picture did not load. Try another.'))} /></label>
+      </fieldset>
       <p className="note">People you meet see a silhouette and what you have in common. <strong>Share</strong> hands over only what you tick here, plus your selfie. Email means your real address. <strong>Unshare</strong> removes it from Confer for that person; it cannot recall a copy they already made.</p>
       <label>Email<input type="email" autoComplete="email" value={draft.contact.email ?? ''} onChange={(e) => set({ contact: { ...draft.contact, email: e.target.value } })} /></label>
       <label>LinkedIn <small>optional</small><input value={draft.contact.linkedin ?? ''} onChange={(e) => set({ contact: { ...draft.contact, linkedin: e.target.value } })} /></label>
       <label>GitHub <small>optional</small><input value={draft.contact.github ?? ''} onChange={(e) => set({ contact: { ...draft.contact, github: e.target.value } })} /></label>
       <FieldPicker legend="Share hands over" value={draft.shareFields} onChange={(shareFields) => set({ shareFields })} />
-      <div className="row">
-        {draft.photo && <img className="selfie" src={draft.photo} alt="Your selfie" />}
-        <label>Selfie <small>optional. Only people you share with see it.</small>
-          <input type="file" accept="image/*" capture="user" onChange={(e) => e.target.files?.[0] && resize(e.target.files[0]).then((photo) => set({ photo }), () => setProblem('That picture did not load. Try another.'))} />
-        </label>
-        {draft.photo && <button type="button" className="btn" onClick={() => set({ photo: '' })}>Remove</button>}
-      </div>
-      <Problem error={problem} />
       <fieldset className="checks">
         <legend>Booths</legend>
         <label><input type="checkbox" checked={draft.openToBooths} onChange={(e) => set({ openToBooths: e.target.checked })} /> Matching booths may send me a request (they see a silhouette, not my name)</label>
@@ -103,33 +138,43 @@ export const How = () => (
   </ol>
 )
 
-export function Onboarding({ session, onToken }: { session: Session; onToken: (token: string) => void }) {
+export function Onboarding({ session, onToken, stage }: { session: Session; onToken: (token: string) => void; stage?: boolean }) {
   const [draft, setDraft] = useState(blank)
+  const [badge, setBadge] = useState('')
+  const heading = useRef<HTMLHeadingElement>(null)
   const [step, setStep] = useState(0)
   const [problem, setProblem] = useState<string>()
   const [title, Fields] = steps[step]
+  const Main = stage ? 'div' : 'main'
+  useEffect(() => { if (step) heading.current?.focus() }, [step])
   const submit = (e: FormEvent) => {
     e.preventDefault()
+    if (step === 0 && badge.trim() && !(/^\d+$/.test(badge.trim()) && Number(badge) <= 586)) return setProblem('Badge numbers go from 0 to 586.')
     if (step === 1 && draft.interests.length < 3) return setProblem('Pick at least 3 topics so we can find what you have in common.')
     setProblem(undefined)
     if (step < 2) return setStep(step + 1)
-    call(session, 'POST /api/me/signup', { body: draft }).then((r) => onToken(r.token), (err: Error) => setProblem(err.message))
+    // A badge that is already taken goes back to the badge field; everything typed stays.
+    call(session, 'POST /api/me/signup', { body: { ...draft, ...(badge.trim() && { tagId: Number(badge) }) } }).then((r) => onToken(r.token), (err: Error) => { if (err.message.startsWith('Badge')) setStep(0); setProblem(err.message) })
   }
   return (
-    <main className="screen onboarding">
+    <Main className="screen onboarding">
       <Scenery className="band" />
-      {step === 0 && (
+      {step === 0 && !stage && (
         <header className="hero">
           <p className="wordmark">Confer</p>
           <h1>The front of your badge says hi. <em>Only you say yes.</em></h1>
           <How />
         </header>
       )}
+      {(step > 0 || stage) && <h1 ref={heading} tabIndex={-1} className="sr">Sign up, step {step + 1} of 3: {title}</h1>}
       <form onSubmit={submit} className="paper">
         <p className="steps"><span className="sr">Step {step + 1} of 3. </span>{steps.map(([s], i) => <span key={s} aria-current={i === step ? 'step' : undefined}>{i + 1}. {s}</span>)}</p>
         <h2>{title}</h2>
-        <Fields draft={draft} set={(patch) => setDraft((d) => ({ ...d, ...patch }))} />
-        <Problem error={problem} />
+        <Fields draft={draft} set={(patch) => setDraft((d) => ({ ...d, ...patch }))}>
+          <label>Badge number <small>On the badge you were handed. Leave empty to get one.</small><input inputMode="numeric" pattern="[0-9]*" value={badge} onChange={(e) => setBadge(e.target.value)} aria-invalid={!!problem || undefined} /></label>
+          <Problem error={problem} />
+        </Fields>
+        {step > 0 && <Problem error={problem} />}
         <div className="row end">
           {step > 0 && <button type="button" className="btn" onClick={() => setStep(step - 1)}>Back</button>}
           <button type="submit" className="btn primary">{step < 2 ? 'Next' : 'Get my badge'}</button>
@@ -139,7 +184,7 @@ export function Onboarding({ session, onToken }: { session: Session; onToken: (t
         <h2>{isMock ? 'Or try a demo person' : 'Demo sign-in'}</h2>
         <div className="row">{Object.values(personas).map(([name, token]) => <button type="button" key={token} className="btn" onClick={() => onToken(token)}>{name}</button>)}</div>
       </section>
-    </main>
+    </Main>
   )
 }
 

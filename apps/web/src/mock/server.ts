@@ -137,8 +137,9 @@ export function createMock(now: () => number = Date.now) {
   const score = (q: string[], text: string[]) => { const t = words(text.join(' ')); return Math.min(97, 30 + 22 * q.filter((w) => t.some((x) => x.startsWith(w.slice(0, 5)))).length) }
 
   const routes: { [K in keyof Api]: (me: Me, r: Req<K>) => Api[K]['res'] } = {
-    'POST /api/me/signup': (_, { body: { code, ...b } }) => {
-      const tagId = 520 + people.size, me: Me = { ...b, id: `p${tagId}`, tagId, kind: code ? 'sponsor' : 'attendee', starred: [], hasPhoto: !!b.photo }
+    'POST /api/me/signup': (_, { body: { code, tagId = 520 + people.size, ...b } }) => {
+      if (byTag(tagId)) throw new Error(`Badge ${tagId} already belongs to someone`)
+      const me: Me = { ...b, id: `p${tagId}`, tagId, kind: code ? 'sponsor' : 'attendee', starred: [], hasPhoto: !!b.photo }
       people.set(me.id, me)
       return { token: `demo-${tagId}`, me }
     },

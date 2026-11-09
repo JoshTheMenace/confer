@@ -29,9 +29,8 @@ describe('typeOf', () => {
 describe('buildMatchQuery', () => {
   test('hybrid rrf of lexical + semantic, each scoped by the consent filters', () => {
     const req = buildMatchQuery({ id: 'me', interests: ['eBPF'], about: 'kernel nerd' })
-    const rerank = (req.retriever as any).text_similarity_reranker
-    expect(rerank).toMatchObject({ field: 'about', inference_text: 'eBPF kernel nerd', rank_window_size: 20 })
-    const children = rerank.retriever.rrf.retrievers as any[]
+    expect(req.retriever).not.toHaveProperty('text_similarity_reranker') // default matches keep the interest-weighted RRF order
+    const children = (req.retriever as any).rrf.retrievers as any[]
     expect(req.index).toBe('profiles')
     expect(req._source.excludes).toContain('tokenHash')
     expect(children).toHaveLength(2)
@@ -40,6 +39,11 @@ describe('buildMatchQuery', () => {
       expect(standard.query.bool.filter).toEqual([{ term: { kind: 'attendee' } }, { term: { discoverable: true } }, { term: { interestsVisibleTo: 'peers' } }])
       expect(standard.query.bool.must_not).toEqual([{ ids: { values: ['me'] } }])
     }
+  })
+  test('free-text search adds the reranker over the same consent-scoped hybrid shortlist', () => {
+    const rerank = (buildMatchQuery({ id: 'me', interests: ['eBPF'] }, 'tracing mentor').retriever as any).text_similarity_reranker
+    expect(rerank).toMatchObject({ field: 'about', inference_text: 'tracing mentor', rank_window_size: 20 })
+    expect(rerank.retriever.rrf.retrievers).toHaveLength(2)
   })
   test('free text q drives both retrievers', () => {
     expect(JSON.stringify(buildMatchQuery({ id: 'me', interests: ['eBPF'] }, 'gitops'))).toContain('"query":"gitops"')

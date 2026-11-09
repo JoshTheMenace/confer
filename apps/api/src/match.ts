@@ -35,15 +35,14 @@ export function buildMatchQuery(me: { id: string } & Pick<Profile, 'interests' |
     // interests/lookingFor are keywords, so also match exact tags both ways: what I like ↔ what they want.
     ...(q ? [] : [{ terms: { interests: me.interests ?? [], boost: 3 } }, { terms: { lookingFor: me.interests ?? [], boost: 2 } }, { terms: { interests: me.lookingFor ?? [], boost: 2 } }]),
   ] } }
+  const hybrid = { rrf: { retrievers: [scoped(lexical), scoped({ semantic: { field: 'about_semantic', query: text } })], rank_window_size: 50 } }
   return {
     index: 'profiles', size: 10, _source: { excludes: ['tokenHash'] },
-    retriever: text
-      ? { text_similarity_reranker: {
-          // Stage 3: a cross-encoder re-reads the hybrid shortlist and reorders it by true relevance.
-          retriever: { rrf: { retrievers: [scoped(lexical), scoped({ semantic: { field: 'about_semantic', query: text } })], rank_window_size: 50 } },
-          field: 'about', inference_id: process.env.ELASTIC_RERANKER ?? '.jina-reranker-v3', inference_text: text, rank_window_size: 20,
-        } }
-      : scoped({ match_all: {} }),
+    retriever: !text ? scoped({ match_all: {} })
+      // Free-text search is about what people wrote, so a cross-encoder re-reads the bios of the hybrid shortlist.
+      // Default matches stay on RRF: the reranker can only read stored text (not copy_to fields), and would bury exact interest matches.
+      : q?.trim() ? { text_similarity_reranker: { retriever: hybrid, field: 'about', inference_id: process.env.ELASTIC_RERANKER ?? '.jina-reranker-v3', inference_text: text, rank_window_size: 20 } }
+      : hybrid,
   } satisfies estypes.SearchRequest
 }
 

@@ -43,7 +43,8 @@ Some panels start empty: the `confer.*` counters only move once people scan and 
 
 ## Found with Dash0's AI tools
 
-Both are written up in [incidents.md](incidents.md):
+All three are written up in [incidents.md](incidents.md):
 
 - [Incident 2: API logs never reached Dash0](incidents.md#2-api-logs-never-reached-dash0-found-with-the-dash0-mcp-server), found by asking the Dash0 MCP server for `dex-api` logs and getting none.
 - [Incident 4: saves took 2 to 6 seconds](incidents.md#4-saves-took-26-seconds-found-with-dash0-agent0), root-caused by Agent0 (consent save 4.8s to 1.0s). Full report: [evidence/agent0-latency.md](evidence/agent0-latency.md).
+- [Incident 5: every request re-checked the sign-in](incidents.md#5-every-request-re-checked-the-sign-in-found-with-dash0-agent0), found by Agent0 on the current API (707 of 720 requests; p50 791 ms to 344 ms on the three most-polled routes after the fix). Agent0's answer: [evidence/agent0-token-lookup.md](evidence/agent0-token-lookup.md).

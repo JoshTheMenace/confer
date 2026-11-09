@@ -8,8 +8,10 @@ type Patch = Partial<Pick<Me, 'approach' | 'interestsVisibleTo' | 'discoverable'
 
 export function Badge({ me, onChange }: { me: Me; onChange: (me: Me | null) => void }) {
   const [error, setError] = useState<string>()
+  const [saving, setSaving] = useState(false)
   const save = async (json: Patch) => {
-    try { onChange((await call(api.api.me.$patch({ json }))).me); setError(undefined) } catch (e) { setError((e as Error).message) }
+    setSaving(true)
+    try { onChange((await call(api.api.me.$patch({ json }))).me); setError(undefined) } catch (e) { setError((e as Error).message) } finally { setSaving(false) }
   }
   const toggle = (k: 'peers' | 'sponsors', on: boolean) => save({ interestsVisibleTo: on ? [...me.interestsVisibleTo, k] : me.interestsVisibleTo.filter((x) => x !== k) })
 
@@ -31,7 +33,7 @@ export function Badge({ me, onChange }: { me: Me; onChange: (me: Me | null) => v
         <div className="options">
           {(Object.keys(approaches) as Approach[]).map((k) => (
             <label key={k} className="option">
-              <input type="radio" name="approach" checked={me.approach === k} onChange={() => save({ approach: k })} />
+              <input type="radio" name="approach" checked={me.approach === k} onChange={() => save({ approach: k })} disabled={saving} />
               <span><span aria-hidden>{approaches[k].icon} </span>{approaches[k].label}</span>
             </label>
           ))}
@@ -39,10 +41,10 @@ export function Badge({ me, onChange }: { me: Me; onChange: (me: Me | null) => v
       </fieldset>
       <fieldset className="field">
         <legend>Who can see your interests?</legend>
-        <label className="check"><input type="checkbox" checked={me.interestsVisibleTo.includes('peers')} onChange={(e) => toggle('peers', e.target.checked)} />People I meet</label>
-        <label className="check"><input type="checkbox" checked={me.interestsVisibleTo.includes('sponsors')} onChange={(e) => toggle('sponsors', e.target.checked)} />Sponsors</label>
+        <label className="check"><input type="checkbox" checked={me.interestsVisibleTo.includes('peers')} onChange={(e) => toggle('peers', e.target.checked)} disabled={saving} />People I meet</label>
+        <label className="check"><input type="checkbox" checked={me.interestsVisibleTo.includes('sponsors')} onChange={(e) => toggle('sponsors', e.target.checked)} disabled={saving} />Sponsors</label>
       </fieldset>
-      <label className="check"><input type="checkbox" checked={me.discoverable} onChange={(e) => save({ discoverable: e.target.checked })} />Suggest me in other people’s matches</label>
+      <label className="check"><input type="checkbox" checked={me.discoverable} onChange={(e) => save({ discoverable: e.target.checked })} disabled={saving} />Suggest me in other people’s matches</label>
       <Problem error={error} />
     </>
   )

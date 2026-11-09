@@ -35,8 +35,8 @@ export function discoverSearches(me: Mine, q?: string) {
       { index: ix.profiles },
       { size: 4, _source: [...badge, 'interests', 'about', 'pitch', 'attachment'], highlight: highlight('about', 'pitch'), retriever: hybrid(text, ['displayName^2', 'about', 'pitch'], 'interests', tags, 'about_semantic', [{ term: { kind: 'sponsor' } }]) },
       { index: ix.profiles },
-      // People are ranked on their topics, but only badge fields and interests (for `common`) are read back, and no highlights.
-      { size: 6, _source: [...badge, 'interests'], retriever: hybrid(text, ['role', 'about', 'stuckOn'], 'interests', tags, 'about_semantic', [{ term: { kind: 'attendee' } }, { term: { discoverable: true } }], [{ ids: { values: [me.id] } }]) },
+      // People are searched by topic tags only (peer_semantic): what someone wrote about themselves must not be probeable by another attendee.
+      { size: 6, _source: [...badge, 'interests'], retriever: hybrid(text, ['interests^2', 'lookingFor'], 'interests', tags, 'peer_semantic', [{ term: { kind: 'attendee' } }, { term: { discoverable: true } }], [{ ids: { values: [me.id] } }]) },
     ],
   }
 }

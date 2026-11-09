@@ -7,12 +7,21 @@ spec:
   template:
     metadata: { labels: { app: dex-web } }
     spec:
+      # Hardening from Radar's cluster audit (docs/radar.md): no API token, no root, no privilege escalation, read-only disk.
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 101, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app: dex-web } } }
+      volumes: [{ name: tmp, emptyDir: {} }]
       containers:
         - name: web
           image: dex-web
           ports: [{ containerPort: 8080 }]
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
           readinessProbe: { httpGet: { path: /, port: 8080 } }
-          resources: { requests: { cpu: 50m, memory: 32Mi }, limits: { memory: 64Mi } }
+          livenessProbe: { httpGet: { path: /, port: 8080 } }
+          resources: { requests: { cpu: 50m, memory: 32Mi }, limits: { cpu: 250m, memory: 64Mi } }
 ---
 apiVersion: v1
 kind: Service

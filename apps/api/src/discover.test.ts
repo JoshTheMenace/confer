@@ -24,12 +24,14 @@ describe('discoverSearches', () => {
     const b = bodies()
     expect(b.searches.filter((_, i) => i % 2 === 0)).toEqual([{ index: 't_talks' }, { index: 't_profiles' }, { index: 't_profiles' }])
     expect(b.text).toBe('OpenTelemetry eBPF mentoring tail latency')
-    for (const [body, field] of [[b.talks, 'semantic'], [b.booths, 'about_semantic'], [b.people, 'about_semantic']] as const) {
+    for (const [body, field] of [[b.talks, 'semantic'], [b.booths, 'about_semantic'], [b.people, 'peer_semantic']] as const) {
       const [keyword, semantic] = body.retriever.rrf.retrievers
       expect(keyword.standard.query.bool.must.bool.should[0].multi_match.query).toBe(b.text)
       expect(semantic.standard.query.bool.must).toEqual({ semantic: { field, query: b.text } })
     }
     expect(b.talks.retriever.rrf.retrievers[0].standard.query.bool.must.bool.should[1]).toEqual({ terms: { topics: me.interests, boost: 3 } })
+    // People are searchable by topic tags only: never by what they wrote about themselves.
+    expect(JSON.stringify(b.people)).not.toMatch(/about_semantic|"role"|"about"|stuckOn/)
   })
   test('free text reranks talks only, on the real abstract field', () => {
     const b = bodies(' tracing across 200 services ')

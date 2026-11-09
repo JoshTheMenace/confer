@@ -3,7 +3,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { auth, type Me } from '../auth.js'
 import { commonOf } from '../common.js'
-import { autoShares, bulk, cardFor, expiresAt, fitOf, giveCards, pairId, profilesById, relations, sources, swap, type Meeting, type RequestDoc, type Share } from '../consent.js'
+import { autoShares, bulk, cards, expiresAt, fitOf, giveCards, pairId, profilesById, relations, sources, swap, type Meeting, type RequestDoc, type Share } from '../consent.js'
 import type { Api, Common, Profile, Term } from '../contract.js'
 import { es, ix } from '../es.js'
 import { requests, span } from '../telemetry.js'
@@ -25,16 +25,17 @@ export const booth = new Hono<{ Variables: { me: Me } }>()
     const reqs = sent.hits.hits.map((h) => h._source!), byAttendee = new Map(reqs.map((r) => [r.attendee, r]))
     const ids = [...scanned.hits.hits.map((h) => h._source!.scanned), ...byAttendee.keys(), ...shared.hits.hits.map((h) => h._source!.from)]
     // Shares are re-read by id here: someone who unshared a second ago is not a lead, whatever search still says.
-    const rels = await relations(viewer, (await profilesById(ids)).filter((p) => p.kind === 'attendee'))
-    const visitors = rels.filter((r) => r.mine), count = (status: RequestDoc['status']) => reqs.filter((r) => r.status === status).length
+    const rels = (await relations(viewer, [...new Set(ids)])).rels.filter((r) => r.subject.kind === 'attendee')
+    const list = await cards(viewer, rels), seen = rels.map((r, i) => ({ ...r, card: list[i] }))
+    const visitors = seen.filter((r) => r.mine), count = (status: RequestDoc['status']) => reqs.filter((r) => r.status === status).length
     return c.json({
-      leads: rels.filter((r) => r.shareIn)
-        .map((r) => ({ card: cardFor(viewer, r), sharedAt: r.shareIn!.at, via: r.shareIn!.via, note: r.shareIn!.note }))
+      leads: seen.filter((r) => r.shareIn)
+        .map((r) => ({ card: r.card, sharedAt: r.shareIn!.at, via: r.shareIn!.via, note: r.shareIn!.note }))
         .sort((a, b) => b.sharedAt.localeCompare(a.sharedAt)),
       visitors: visitors.map((r) => {
         const req = byAttendee.get(r.subject.id)
         return {
-          card: cardFor(viewer, r), fit: fitOf(r.mine!.common, !!r.subject.starred?.includes(viewer.id)), source: 'scan' as const, scannedAt: r.mine!.at,
+          card: r.card, fit: fitOf(r.mine!.common, !!r.subject.starred?.includes(viewer.id)), source: 'scan' as const, scannedAt: r.mine!.at,
           ...(req && { request: { status: req.status, note: req.note, sentAt: req.createdAt } }),
         }
       }).sort((a, b) => b.fit - a.fit),

@@ -3,8 +3,8 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { auth, type Me } from '../auth.js'
 import { commonOf } from '../common.js'
-import { autoShares, bulk, cardsFor, giveCards, pairId, profilesById, sources, swap, toKind, type Meeting } from '../consent.js'
-import type { Api, Common, Profile } from '../contract.js'
+import { autoShares, bulk, cards, giveCards, pairId, relations, sources, swap, toKind, type Meeting } from '../consent.js'
+import type { Api, Common } from '../contract.js'
 import { ix } from '../es.js'
 import { commonSize, scans, span } from '../telemetry.js'
 
@@ -23,31 +23,27 @@ export const scan = new Hono<{ Variables: { me: Me } }>()
     if (tooFast(viewer.id, tagIds.length)) return c.json({ error: 'Slow down: that is more badges than anyone can meet in a minute' }, 429)
     // Badge number to profile goes through the tags index by id: real-time, so someone who signed up a second ago is found.
     const tags = await sources([...new Set(tagIds)].map((t) => ({ _index: ix.tags, _id: String(t) })))
-    const [me, ...scanned] = await profilesById([viewer.id, ...tags.flatMap((t) => (t ? [t.profile as string] : []))])
-    const kindOf = (p: Profile) => (viewer.kind === 'sponsor' ? 'booth' : toKind(p))
-    return span('scan', { kind: toKind(viewer), source, count: scanned.length }, async () => {
-      const prior = await sources(scanned.flatMap((p) => [
-        { _index: ix.meetings, _id: pairId(viewer.id, p.id) }, { _index: ix.meetings, _id: pairId(p.id, viewer.id) }, { _index: ix.shares, _id: pairId(p.id, viewer.id) },
-      ]))
-      const met = await Promise.all(scanned.map(async (p, i) => {
-        const [mine, theirs, shared] = prior.slice(i * 3, i * 3 + 3) as [Meeting?, Meeting?, object?]
+    const { me, rels } = await relations(viewer, [...new Set(tags.flatMap((t) => (t && t.profile !== viewer.id ? [t.profile as string] : [])))])
+    return span('scan', { kind: toKind(viewer), source, count: rels.length }, async () => {
+      const at = new Date().toISOString()
+      const met = await Promise.all(rels.map(async (r) => {
         // Things in common are worked out once per pair and frozen, so nobody can probe by editing tags and scanning again.
-        const common: Common[] = mine?.common ?? (theirs ? swap(theirs.common) : await commonOf(me.interests, p.interests))
-        return { p, common, first: !mine, shared: !!shared }
+        const common: Common[] = r.mine?.common ?? (r.theirs ? swap(r.theirs.common) : await commonOf(me.interests, r.subject.interests))
+        const kind = viewer.kind === 'sponsor' ? 'booth' : toKind(r.subject)
+        return { ...r, first: !r.mine, mine: r.mine ?? ({ scanner: viewer.id, scanned: r.subject.id, kind, source, at, common } satisfies Meeting) }
       }))
-      const at = new Date().toISOString(), firsts = met.filter((m) => m.first)
-      await Promise.all([
-        bulk(firsts.flatMap(({ p, common }) => [
-          { create: { _index: ix.meetings, _id: pairId(viewer.id, p.id) } },
-          { scanner: viewer.id, scanned: p.id, kind: kindOf(p), source, at, common } satisfies Meeting,
-        ])),
-        giveCards(viewer.kind !== 'sponsor' ? [] : met.filter((m) => !m.shared && autoShares(m.p, viewer.id, m.common))
-          .map(({ p }) => ({ from: p.id, to: me, fields: p.shareFields ?? [], via: 'auto' as const }))),
+      const firsts = met.filter((m) => m.first)
+      const [, auto] = await Promise.all([
+        bulk(firsts.flatMap((m) => [{ create: { _index: ix.meetings, _id: pairId(viewer.id, m.subject.id) } }, m.mine])),
+        giveCards(viewer.kind !== 'sponsor' ? [] : met.filter((m) => !m.shareIn && autoShares(m.subject, viewer.id, m.mine.common))
+          .map((m) => ({ from: m.subject.id, to: me, fields: m.subject.shareFields ?? [], via: 'auto' as const }))),
       ])
-      for (const { p, common } of firsts) {
-        scans.add(1, { kind: kindOf(p), source })
-        commonSize.record(common.length)
+      for (const { mine } of firsts) {
+        scans.add(1, { kind: mine.kind, source })
+        commonSize.record(mine.common.length)
       }
-      return c.json({ cards: await cardsFor({ ...viewer, starred: me.starred }, scanned) } satisfies Api['POST /api/scan']['res'])
+      // Built from what was just read and written: no second read before the card appears.
+      const now = met.map((m) => ({ ...m, shareIn: m.shareIn ?? auto.find((s) => s.from === m.subject.id) }))
+      return c.json({ cards: await cards({ ...viewer, starred: me.starred }, now) } satisfies Api['POST /api/scan']['res'])
     })
   })

@@ -26,7 +26,7 @@ export type ProfileInput = {
   lookingFor: string[]
   about?: string
   stuckOn?: string // one line on what you're stuck on; only matching booths you allowed can see it
-  discoverable: boolean // suggest me to other attendees
+  discoverable: boolean // other attendees may find me by my topic tags (never by role, about or stuckOn)
   openToBooths: boolean // matching booths may see my silhouette and send me a request
   boothsSeeName: boolean
   autoShare: AutoShare

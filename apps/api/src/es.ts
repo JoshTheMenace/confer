@@ -36,19 +36,21 @@ const indices = {
   receipts: { attendee: { type: 'keyword' }, viewer: { type: 'keyword' }, fields: { type: 'keyword' }, at: { type: 'date' } },
 } as const
 
-// Silhouette data model. Index names carry a prefix so a dev or test run never touches the live event's data.
-const prefix = process.env.ES_INDEX_PREFIX ?? 'confer_'
+// Silhouette data model. Index names carry a prefix so a dev or test run never touches the live event's data:
+// the live prefix is used only when it is set explicitly or in production.
+const prefix = process.env.ES_INDEX_PREFIX || (process.env.NODE_ENV === 'production' ? 'confer_' : 'dev_')
 const kw = { type: 'keyword' }, date = { type: 'date' }, text = { type: 'text' }, bool = { type: 'boolean' }
 const stored = { type: 'keyword', index: false, doc_values: false } // kept in _source only: never searchable
 const v2 = {
   profiles: {
     tagId: { type: 'integer' }, kind: kw, displayName: text, pronouns: kw, approach: kw, commPref: text,
     role: { ...text, copy_to: 'about_semantic' },
-    interests: { ...kw, copy_to: 'about_semantic' },
-    lookingFor: { ...kw, copy_to: 'about_semantic' },
+    interests: { ...kw, copy_to: ['about_semantic', 'peer_semantic'] },
+    lookingFor: { ...kw, copy_to: ['about_semantic', 'peer_semantic'] },
     about: { ...text, copy_to: 'about_semantic' },
     stuckOn: { ...text, copy_to: 'about_semantic' },
-    about_semantic: { type: 'semantic_text' },
+    about_semantic: { type: 'semantic_text' }, // everything: only booth and talk matching may query it
+    peer_semantic: { type: 'semantic_text' }, // tags only: the one field a search for people may query
     discoverable: bool, openToBooths: bool, boothsSeeName: bool, autoShare: kw, shareFields: kw, starred: kw, hasPhoto: bool,
     interestEdits: { type: 'integer' }, // capped, so interests can't be cycled to probe other people's
     pitch: text, attachment: { properties: { url: stored, label: text } },

@@ -7,10 +7,18 @@ spec:
   template:
     metadata: { labels: { app: dex-api } }
     spec:
+      # Hardening from Radar's cluster audit (docs/radar.md): no API token, no root, no privilege escalation, read-only disk.
+      automountServiceAccountToken: false
+      securityContext: { runAsNonRoot: true, runAsUser: 1000, seccompProfile: { type: RuntimeDefault } }
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app: dex-api } } }
+      volumes: [{ name: tmp, emptyDir: {} }]
       containers:
         - name: api
           image: dex-api
           ports: [{ containerPort: 3000 }]
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          volumeMounts: [{ name: tmp, mountPath: /tmp }]
           envFrom: [{ secretRef: { name: dex-secrets } }]
           env:
             - { name: OTEL_SERVICE_NAME, value: dex-api }
@@ -20,7 +28,7 @@ spec:
             - { name: OTEL_RESOURCE_ATTRIBUTES, value: "k8s.pod.name=$(POD_NAME),k8s.namespace.name=$(POD_NAMESPACE),k8s.deployment.name=dex-api" }
           readinessProbe: { httpGet: { path: /readyz, port: 3000 }, periodSeconds: 10 }
           livenessProbe: { httpGet: { path: /healthz, port: 3000 } }
-          resources: { requests: { cpu: 100m, memory: 192Mi }, limits: { memory: 384Mi } }
+          resources: { requests: { cpu: 100m, memory: 192Mi }, limits: { cpu: "1", memory: 384Mi } }
 ---
 apiVersion: v1
 kind: Service

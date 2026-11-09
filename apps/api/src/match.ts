@@ -38,7 +38,11 @@ export function buildMatchQuery(me: { id: string } & Pick<Profile, 'interests' |
   return {
     index: 'profiles', size: 10, _source: { excludes: ['tokenHash'] },
     retriever: text
-      ? { rrf: { retrievers: [scoped(lexical), scoped({ semantic: { field: 'about_semantic', query: text } })], rank_window_size: 50 } }
+      ? { text_similarity_reranker: {
+          // Stage 3: a cross-encoder re-reads the hybrid shortlist and reorders it by true relevance.
+          retriever: { rrf: { retrievers: [scoped(lexical), scoped({ semantic: { field: 'about_semantic', query: text } })], rank_window_size: 50 } },
+          field: 'about', inference_id: process.env.ELASTIC_RERANKER ?? '.jina-reranker-v3', inference_text: text, rank_window_size: 20,
+        } }
       : scoped({ match_all: {} }),
   } satisfies estypes.SearchRequest
 }

@@ -81,4 +81,14 @@ describe('routes', () => {
     expect(await (await call('/b/why')).json()).toEqual({ why: expect.stringContaining('both care about eBPF') })
     expect((await call('/nobody/why')).status).toBe(404)
   })
+  test('sponsors are refused: matches use the peer lens', async () => {
+    es.search.mockResolvedValueOnce({ hits: { hits: [{ _id: 's', _source: { ...ana, kind: 'sponsor' } }] } } as any)
+    expect((await call('/')).status).toBe(403)
+    es.search.mockResolvedValueOnce({ hits: { hits: [{ _id: 's', _source: { ...ana, kind: 'sponsor' } }] } } as any)
+    expect((await call('/b/why')).status).toBe(403)
+  })
+  test('why refuses people who opted out of matchmaking', async () => {
+    es.get.mockImplementation(async ({ id }) => ({ me: { _source: ana }, b: { _source: { ...ben, discoverable: false, interestsVisibleTo: ['peers'] } } } as any)[id])
+    expect((await call('/b/why')).status).toBe(404)
+  })
 })

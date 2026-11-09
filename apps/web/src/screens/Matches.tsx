@@ -40,12 +40,14 @@ export function Matches() {
     <>
       <h1>People to meet</h1>
       <p>Picked by your interests and what you wrote about yourself. Only people who chose to be suggested show up.</p>
-      <form role="search" onSubmit={search} className="row" style={{ alignItems: 'end' }}>
-        <label className="field" style={{ flex: 1, margin: 0 }}>Looking for something specific?
-          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. eBPF tracing" />
-        </label>
-        <button type="submit">Search</button>
-      </form>
+      <search>
+        <form onSubmit={search} className="row" style={{ alignItems: 'end' }}>
+          <label className="field" style={{ flex: 1, margin: 0 }}>Looking for something specific?
+            <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. eBPF tracing" />
+          </label>
+          <button type="submit">Search</button>
+        </form>
+      </search>
       <Problem error={error} />
       {!data ? !error && <Loading what="matches" /> : data.length ? data.map((m) => <MatchCard key={m.id} m={m} />) : <p className="muted">No matches yet. Try adding interests.</p>}
     </>

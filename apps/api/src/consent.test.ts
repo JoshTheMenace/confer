@@ -123,6 +123,14 @@ describe('openVault: the only vault read', () => {
     vi.useRealTimers()
   })
 
+  test('a re-share after an unshare gets its own opened receipt within a minute', async () => {
+    await openVault('eve', [{ owner: 'ana', share: share('ana', 'eve') }])
+    await openVault('eve', [{ owner: 'ana', share: { ...share('ana', 'eve', ['email', 'github']), at: '2026-11-09T11:05:00.000Z' } }])
+    expect(es.bulk).toHaveBeenCalledTimes(2)
+    const [, second] = vi.mocked(es.bulk).mock.calls.map(([r]) => (r as any).operations[1])
+    expect(second).toMatchObject({ type: 'opened', fields: ['email', 'github'] })
+  })
+
   test('reading your own vault needs no share and writes no receipt', async () => {
     expect((await openVault('ana', [{ owner: 'ana' }])).get('ana')).toEqual(vault)
     expect(es.bulk).not.toHaveBeenCalled()

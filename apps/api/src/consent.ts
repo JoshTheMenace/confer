@@ -75,12 +75,13 @@ export async function bulk(operations: object[]) {
 // one per owner and viewer (stable id), stamped with the latest read. People polls every 2 seconds and a write costs
 // about 0.5s, so the stamp is refreshed at most once a minute.
 const stamped = new Map<string, number>()
+const stampKey = (owner: string, viewer: string, share?: Share) => `${pairId(owner, viewer)}@${share?.at ?? ''}`
 export function openVault(viewer: string, reads: { owner: string; share?: Share }[]): Promise<Map<string, Vault>> {
   const allowed = reads.filter((r) => r.owner === viewer || (r.share?.from === r.owner && r.share.to === viewer))
   if (!allowed.length) return Promise.resolve(new Map())
   return span('vault.read', { count: allowed.length }, async () => {
     const at = new Date().toISOString()
-    const due = allowed.filter((r) => r.owner !== viewer && Date.now() - (stamped.get(pairId(r.owner, viewer)) ?? 0) > 60_000)
+    const due = allowed.filter((r) => r.owner !== viewer && Date.now() - (stamped.get(stampKey(r.owner, viewer, r.share)) ?? 0) > 60_000)
     const [vaults] = await Promise.all([
       sources(allowed.map((r) => ({ _index: ix.vault, _id: r.owner }))),
       bulk(due.flatMap((r) => [
@@ -88,7 +89,7 @@ export function openVault(viewer: string, reads: { owner: string; share?: Share 
         { owner: r.owner, who: viewer, type: 'opened', fields: r.share!.fields, at, traceId: traceId() },
       ])),
     ])
-    for (const r of due) stamped.set(pairId(r.owner, viewer), Date.now())
+    for (const r of due) stamped.set(stampKey(r.owner, viewer, r.share), Date.now())
     for (const r of allowed) vaultReads.add(1, { reason: r.owner === viewer ? 'self' : 'share' })
     return new Map(allowed.map((r, i) => [r.owner, vaults[i] ?? {}]))
   })

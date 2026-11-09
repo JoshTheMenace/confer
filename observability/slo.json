@@ -1,0 +1,40 @@
+{
+  "apiVersion": "openslo/v1",
+  "kind": "SLO",
+  "metadata": {
+    "name": "confer-api-fast",
+    "labels": { "slo": "confer-api-fast" },
+    "annotations": { "dash0.com/display-name": "Confer API: fast and successful" }
+  },
+  "spec": {
+    "description": "95% of dex-api /api requests succeed in under 2 seconds, over a rolling 28 days. 2s leaves room for a route that does two or three Elasticsearch Serverless writes at about 0.5s each (docs/incidents.md, incident 4). A failed request counts as bad however fast it was.",
+    "service": "dex-api",
+    "budgetingMethod": "Occurrences",
+    "timeWindow": [{ "duration": "28d", "isRolling": true }],
+    "indicator": {
+      "metadata": { "name": "confer-api-fast-ratio" },
+      "spec": {
+        "ratioMetric": {
+          "counter": false,
+          "good": {
+            "metricSource": {
+              "type": "Prometheus",
+              "spec": {
+                "query": "histogram_fraction(0, 2, increase({otel_metric_name=\"dash0.spans.duration\", service_name=\"dex-api\", otel_span_kind=\"SERVER\", http_route=~\"/api/.*\", otel_span_status_code!=\"ERROR\"}[5m])) * histogram_count(increase({otel_metric_name=\"dash0.spans.duration\", service_name=\"dex-api\", otel_span_kind=\"SERVER\", http_route=~\"/api/.*\", otel_span_status_code!=\"ERROR\"}[5m]))"
+              }
+            }
+          },
+          "total": {
+            "metricSource": {
+              "type": "Prometheus",
+              "spec": {
+                "query": "histogram_count(increase({otel_metric_name=\"dash0.spans.duration\", service_name=\"dex-api\", otel_span_kind=\"SERVER\", http_route=~\"/api/.*\"}[5m]))"
+              }
+            }
+          }
+        }
+      }
+    },
+    "objectives": [{ "displayName": "95% of API requests succeed in under 2s", "target": 0.95 }]
+  }
+}

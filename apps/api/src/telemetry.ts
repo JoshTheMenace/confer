@@ -5,10 +5,6 @@ import pino from 'pino'
 // Rule: never log contact fields. See .gitar/rules/no-pii-in-telemetry.md
 export const log = pino({ level: process.env.LOG_LEVEL ?? 'info' })
 
-const meter = metrics.getMeter('dex')
-export const catches = meter.createCounter('dex.catches', { description: 'Badges caught, by catcher kind' })
-export const consentDecisions = meter.createCounter('dex.consent.decisions', { description: 'Consent requests resolved, by outcome' })
-
 // Product metrics. Attributes are small fixed sets (kinds, outcomes): never ids, names or contact data.
 const m = metrics.getMeter('confer')
 export const scans = m.createCounter('confer.scans', { description: 'Badges scanned, by kind (peer|booth) and source (camera|manual)' })

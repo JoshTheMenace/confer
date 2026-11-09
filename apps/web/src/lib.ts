@@ -27,7 +27,7 @@ export const contactHref = (field: ContactField, v: string) =>
   : field === 'linkedin' ? (/^https:\/\//i.test(v) ? v : `https://www.linkedin.com/in/${encodeURIComponent(v)}`)
   : `https://github.com/${encodeURIComponent(v.replace(/^@/, ''))}`
 
-export const routes = ['scan', 'badge', 'print', 'dex', 'inbox', 'matches', 'leads'] as const
+export const routes = ['scan', 'badge', 'print', 'dex', 'inbox', 'leads'] as const
 export type Route = (typeof routes)[number]
 export const parseRoute = (hash: string): Route => {
   const r = hash.replace(/^#\/?/, '') as Route

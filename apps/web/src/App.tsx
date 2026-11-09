@@ -5,14 +5,14 @@ import { Badge, Print } from './screens/Badge'
 import { Dex } from './screens/Dex'
 import { Inbox } from './screens/Inbox'
 import { Leads } from './screens/Leads'
-import { Matches } from './screens/Matches'
 import { Onboarding } from './screens/Onboarding'
 import { Scan } from './screens/Scan'
 import { Loading, Problem } from './ui'
 
 const tabs: Record<Me['kind'], [Route, string, string][]> = {
-  attendee: [['scan', '📷', 'Scan'], ['badge', '🪪', 'Badge'], ['dex', '📚', 'Dex'], ['inbox', '📨', 'Inbox'], ['matches', '✨', 'Matches']],
+  attendee: [['scan', '📷', 'Scan'], ['badge', '🪪', 'Badge'], ['dex', '📚', 'Dex'], ['inbox', '📨', 'Inbox']],
   sponsor: [['scan', '📷', 'Scan'], ['leads', '📊', 'Leads'], ['badge', '🪪', 'Badge']],
+  organizer: [],
 }
 
 function useRoute() {
@@ -41,9 +41,9 @@ export function App() {
   // Move focus to the new screen so keyboard and screen reader users land on its heading.
   useEffect(() => main.current?.focus({ preventScroll: false }), [route])
 
-  const screens: Record<Route, (me: Me) => ReactNode> = {
-    scan: (me) => <Scan me={me} />, badge: (me) => <Badge me={me} onChange={setMe} />, print: (me) => <Print me={me} />,
-    dex: () => <Dex />, inbox: () => <Inbox />, matches: () => <Matches />, leads: () => <Leads />,
+  const screens: Record<Route, () => ReactNode> = {
+    scan: () => <Scan />, badge: () => <Badge />, print: () => <Print />,
+    dex: () => <Dex />, inbox: () => <Inbox />, leads: () => <Leads />,
   }
 
   return (
@@ -53,7 +53,7 @@ export function App() {
         {me && <span className="muted">#{me.tagId} · {me.displayName}</span>}
       </header>
       <main ref={main} tabIndex={-1} style={{ outline: 'none' }}>
-        {me === undefined ? (error ? <Problem error={error} /> : <Loading what="Dex" />) : me ? screens[route](me) : <Onboarding onDone={(m) => { setMe(m); location.hash = '#/badge' }} />}
+        {me === undefined ? (error ? <Problem error={error} /> : <Loading what="Dex" />) : me ? screens[route]() : <Onboarding />}
       </main>
       {me && (
         <nav className="tabs" aria-label="Main">

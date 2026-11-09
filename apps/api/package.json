@@ -8,7 +8,8 @@
     "start": "node --import ./dist/otel.js dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "seed": "tsx --env-file=../../.env src/seed.ts"
+    "demo:reset": "tsx --env-file=../../.env src/seed.ts && tsx --env-file=../../.env src/talks.ts",
+    "seed:talks": "tsx --env-file=../../.env src/talks.ts"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^9.5.1",
@@ -24,6 +25,8 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@dicebear/collection": "^9.4.2",
+    "@dicebear/core": "^9.4.3",
     "@types/node": "^26.6.6",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

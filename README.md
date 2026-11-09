@@ -93,6 +93,10 @@ radar                                              # Radar UI on http://localhos
 pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
+## Observability
+
+`pnpm obs:apply` pushes the dashboard, SLO and check rule in `observability/` to Dash0. What is instrumented, and how the app reads its own health back: [docs/observability.md](docs/observability.md).
+
 ## AI disclosure
 
 This project was built during the event with heavy AI assistance, directed by Josh Gimenes, who chose the problem, the product direction and the trade-offs, set up the accounts, and presented it.

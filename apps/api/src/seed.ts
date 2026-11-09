@@ -74,7 +74,7 @@ const booths = ([
   ['Sonar', ['Code quality', 'Security', 'CI/CD', 'Supply chain security'], 'Clean code checklist'],
   ['Skyhook', ['Kubernetes', 'Platform engineering', 'GitOps', 'Developer experience'], 'Platform team playbook'],
 ] as const).map(([name, interests, label], i): Seeded => ({
-  id: `seed-${580 + i}`, tagId: 580 + i, kind: 'sponsor', displayName: name, // the app adds the word "booth" wherever it shows one approach: 'open', commPref: 'Find us at the booth',
+  id: `seed-${580 + i}`, tagId: 580 + i, kind: 'sponsor', displayName: name, approach: 'open', commPref: 'Find us at the booth',
   interests: [...interests], lookingFor: [], about: `Demo profile for the ${name} booth.`, discoverable: true, openToBooths: false, boothsSeeName: false,
   autoShare: 'off', shareFields: [], starred: [], hasPhoto: false,
   pitch: "Here's the guide we talked about", attachment: { url: `https://example.com/${name.toLowerCase()}-guide`, label },

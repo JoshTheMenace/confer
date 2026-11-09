@@ -21,6 +21,14 @@ Built in one day at the Cloud Native Hackathon (WeMakeDevs, Salt Lake City, 2026
 | **Discover** | "What are you stuck on?" finds talks, booths and people who opted in to be found. |
 | **Event Pulse** | Organizers see live numbers and each booth's share rate, with app health read live from Dash0. |
 
+![Stage: a silhouette and what two people have in common](docs/screenshots/stage-meet.png)
+
+| Share: the photo appears because its owner chose it | Booth: leads who said yes, checked by Kubernetes before export |
+|---|---|
+| ![The reveal](docs/screenshots/stage-reveal.png) | ![Export with Kubernetes grants](docs/screenshots/stage-export-kubernetes.png) |
+
+Screenshots are from the presenter view on built-in sample data. A live sign-up on stage (the green square is a test camera): [stage-live-signup.png](docs/screenshots/stage-live-signup.png).
+
 You can also set a rule in advance ("booths I starred get my card"). It is off unless you turn it on.
 
 Why a sponsor wants this: a lead list of people who said yes (each with the note that worked), matching attendees who opted in but never walked past, and share rate per pitch. More in [docs/design.md](docs/design.md).

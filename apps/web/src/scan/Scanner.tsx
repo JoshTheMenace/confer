@@ -86,6 +86,12 @@ export function Scanner({ onCatch }: { onCatch: (tagIds: number[]) => void }) {
       if (ids.length) fire(ids)
     }
 
+    worker.onerror = () => {
+      busy = false
+      clearInterval(timer)
+      setError('Scanner failed to load. Type the badge number below.')
+    }
+
     const tick = () => {
       const v = video.current
       if (busy || !v?.videoWidth) return // skip frames while the worker is still thinking

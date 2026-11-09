@@ -1,74 +1,57 @@
-import { useState } from 'react'
-import { api, call } from '../api'
-import { when } from '../lib'
-import { Loading, PersonCard, Problem, useLoad } from '../ui'
+import { useEffect, useRef } from 'react'
+import { call } from '../api'
+import { silhouetteUrl } from '../Silhouette'
+import { ago, fieldNames, Screen, Tag, useApp, useLive } from '../ui'
 
-type Request = Awaited<ReturnType<typeof call<Awaited<ReturnType<typeof api.api.consent.$get>>>>>['requests'][number]
-type Field = Request['fields'][number]
-
-const fieldNames: Record<Field, string> = { email: 'Email', linkedin: 'LinkedIn', github: 'GitHub' }
-const statusText = { pending: 'Waiting for your answer', deferred: 'You’ll decide after the event', granted: 'Shared', denied: 'Not shared' }
-
-function RequestCard({ r }: { r: Request }) {
-  const [fields, setFields] = useState<Field[]>(r.fields) // all fields until a grant narrows them
-  const [shared, setShared] = useState({ status: r.status, fields: r.fields })
-  const [error, setError] = useState<string>()
-  const [saving, setSaving] = useState(false)
-  const decide = async (decision: 'now' | 'later' | 'never') => {
-    setSaving(true)
-    try {
-      const { status } = await call(api.api.consent[':id'].$post({ param: { id: r.id }, json: { decision, ...(decision === 'now' && { fields }) } }))
-      setShared({ status, fields })
-      setError(undefined)
-    } catch (e) { setError((e as Error).message) } finally { setSaving(false) }
-  }
-
-  return (
-    <PersonCard card={r.sponsor} viewer="attendee">
-      <p role="status"><strong>{saving ? 'Saving…' : statusText[shared.status]}</strong>{shared.status === 'granted' && `: ${shared.fields.map((f) => fieldNames[f]).join(', ')}`}</p>
-      {(shared.status === 'pending' || shared.status === 'deferred') && <p className="hint">No answer by {when(r.expiresAt)} means no. The request is then deleted.</p>}
-      <fieldset className="field">
-        <legend>What to share</legend>
-        {(Object.keys(fieldNames) as Field[]).map((f) => (
-          <label key={f} className="check">
-            <input type="checkbox" checked={fields.includes(f)} onChange={(e) => setFields(e.target.checked ? [...fields, f] : fields.filter((x) => x !== f))} />
-            {fieldNames[f]}
-          </label>
-        ))}
-      </fieldset>
-      <div className="row">
-        <button type="button" className="btn-primary" disabled={saving || !fields.length} onClick={() => decide('now')}>Share now</button>
-        <button type="button" disabled={saving} onClick={() => decide('later')}>Decide after event</button>
-        <button type="button" disabled={saving} onClick={() => decide('never')}>Never</button>
-      </div>
-      <Problem error={error} />
-    </PersonCard>
-  )
-}
+const verbs = { shared: 'You shared', opened: 'Opened by', unshared: 'You unshared from' }
+const done = { shared: 'You shared your card', ignored: 'Ignored', pending: '' }
 
 export function Inbox() {
-  const requests = useLoad(() => call(api.api.consent.$get()))
-  const receipts = useLoad(() => call(api.api.consent.receipts.$get()))
+  const { session, say } = useApp()
+  const { data, error, reload } = useLive(session, 'GET /api/inbox')
+  const count = useRef<number>(undefined)
+  const pending = data?.requests.filter((r) => r.status === 'pending') ?? []
+  useEffect(() => {
+    if (!data) return
+    if (count.current !== undefined && pending.length > count.current) say(`New request from ${pending[0].booth.name}.`)
+    count.current = pending.length
+  }, [data, pending, say])
+  const answer = async (id: string, action: 'share' | 'ignore' | 'mute') => {
+    const { request } = await call(session, 'POST /api/inbox/:id', { params: { id }, body: { action } })
+    say(action === 'share' ? `Shared your card with ${request.booth.name}.` : action === 'mute' ? `Muted ${request.booth.name}.` : 'Ignored.')
+    reload()
+  }
   return (
-    <>
-      <h1>Inbox</h1>
-      <p>Sponsors who scanned you ask before seeing your contact. You can change your answer anytime.</p>
-      <h2>Requests</h2>
-      <Problem error={requests.error} />
-      {!requests.data ? !requests.error && <Loading what="requests" /> : requests.data.requests.length
-        ? requests.data.requests.map((r) => <RequestCard key={r.id} r={r} />)
-        : <p className="muted">No requests. Nobody gets your contact without asking.</p>}
-
-      <h2>Who opened your contact</h2>
-      <p className="hint">Whenever someone opens your sealed envelope, you get a receipt showing exactly what they saw.</p>
-      <Problem error={receipts.error} />
-      {receipts.data && (receipts.data.receipts.length ? (
-        <ul className="card">
-          {receipts.data.receipts.map((x, i) => (
-            <li key={i}><strong>{x.viewer?.badge.displayName ?? 'A deleted profile'}</strong> saw your {x.fields.map((f) => fieldNames[f]).join(', ')} · <span className="muted">{when(x.at)}</span></li>
-          ))}
-        </ul>
-      ) : <p className="muted">No one has opened your contact yet.</p>)}
-    </>
+    <Screen title="Inbox" tone="red" lede={<><b>{pending.length}</b> {pending.length === 1 ? 'booth is' : 'booths are'} asking. You decide.</>}>
+      {error && <p role="alert" className="error">{error}</p>}
+      <ul className="requests">
+        {data?.requests.map((r) => (
+          <li key={r.id} className={`request ${r.status}`}>
+            <header><img src={silhouetteUrl(r.booth.id)} alt="" /><div><h2>{r.booth.name}</h2><small>{r.source === 'scan' ? 'Scanned your badge' : 'Matched your interests'} · {ago(r.createdAt)}</small></div></header>
+            <blockquote>{r.note}</blockquote>
+            {r.attachment && <p className="attach">Yours either way: <a href={r.attachment.url} target="_blank" rel="noreferrer">{r.attachment.label}</a></p>}
+            {r.why.length > 0 && <p className="tags"><small>Why you match</small>{r.why.map((w) => <Tag key={w.mine + w.theirs} label={w.mine} />)}</p>}
+            {r.status === 'pending' ? (
+              <div className="row">
+                <button onClick={() => answer(r.id, 'share')}>Share</button>
+                <button className="ghost" onClick={() => answer(r.id, 'ignore')}>Ignore</button>
+                <button className="ghost" onClick={() => answer(r.id, 'mute')}>Mute</button>
+              </div>
+            ) : <p className="stamp-line">{done[r.status]}</p>}
+          </li>
+        ))}
+      </ul>
+      {data && !data.requests.length && <p className="muted">No requests. Booths can only ask; they never get your card unless you say yes.</p>}
+      <h2 className="rule">Receipts</h2>
+      <ol className="receipts">
+        {data?.receipts.map((r) => (
+          <li key={r.id} className={r.type}>
+            <b>{verbs[r.type]} {r.who?.name ?? 'someone'}</b>
+            <span>{r.fields.map((f) => fieldNames[f]).join(', ')}</span>
+            <small>{ago(r.at)} · trace <code>{r.traceId?.slice(0, 8) ?? 'none'}</code></small>
+          </li>
+        ))}
+      </ol>
+    </Screen>
   )
 }

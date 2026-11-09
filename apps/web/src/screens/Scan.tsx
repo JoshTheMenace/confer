@@ -1,39 +1,55 @@
-import { useState } from 'react'
-import { api, call, justCaught, type Card, type Me } from '../api'
-import { approaches } from '../lib'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { call, isMock, type Card } from '../api'
 import { Scanner } from '../scan'
-import { PersonCard, Problem } from '../ui'
+import { Portrait } from '../Silhouette'
+import { ApproachBadge, CommonList, param, Screen, Tag, useApp } from '../ui'
 
-export function Scan({ me }: { me: Me }) {
-  const [caught, setCaught] = useState<Card[]>([])
-  const [said, setSaid] = useState('')
-  const [error, setError] = useState<string>()
-  const sponsor = me.kind === 'sponsor'
-
-  const onCatch = async (tagIds: number[]) => {
-    try {
-      const { cards } = await call(api.api.catch.$post({ json: { tagIds } }))
-      justCaught.unshift(...cards.map((c) => ({ ...c, caughtAt: new Date().toISOString() })))
-      setError(undefined)
-      setSaid(cards.length
-        ? cards.map((c) => `${c.badge.displayName}: ${approaches[c.badge.approach].label}`).join('. ')
-        : `No one is wearing badge ${tagIds.join(', ')} yet.`)
-      setCaught((prev) => [...cards, ...prev.filter((p) => !cards.some((c) => c.id === p.id))])
-    } catch (e) {
-      setError((e as Error).message)
-    }
-  }
+export function Scan() {
+  const { session, me, go, say } = useApp()
+  const [cards, setCards] = useState<Card[]>([])
+  const [error, setError] = useState('')
+  const booth = me.kind === 'sponsor'
+  const scan = useCallback((tagIds: number[], source: 'camera' | 'manual' = 'camera') =>
+    call(session, 'POST /api/scan', { body: { tagIds, source } }).then(({ cards }) => {
+      setCards(cards)
+      setError('')
+      say(cards.map((c) => `Met ${c.name ?? 'an attendee'}. ${c.common.length} things in common.`).join(' '))
+    }, (e: Error) => setError(e.message)), [session, say])
+  // ?catch=501 or ?catch=501,502,503 shows a catch without a camera (standalone only).
+  useEffect(() => { if (session.slot === 'main' && param('catch')) scan(param('catch')!.split(',').map(Number), 'manual') }, [scan, session.slot])
 
   return (
-    <>
-      <h1>{sponsor ? 'Scan visitors' : 'Catch someone'}</h1>
-      <p>Point your camera at a badge. Several badges in view? You catch them all at once.</p>
-      {sponsor && <p className="hint">Scanning sends a request. Each attendee decides whether to share contact details.</p>}
-      <Scanner onCatch={onCatch} />
-      <Problem error={error} />
-      <p role="status"><strong>{said}</strong></p>
-      {!!caught.length && <h2>Just caught</h2>}
-      {caught.map((c) => <PersonCard key={c.id} card={c} viewer={me.kind} className="pop" />)}
-    </>
+    <Screen title="Scan" tone="cobalt" lede={booth ? 'Scan a badge. You see interests and fit, never a name.' : 'Point at a badge. They touch nothing.'}>
+      {cards.length > 0 && (
+        <section className={`catches${cards.length > 1 ? ' group' : ''}`} aria-label="Just met">
+          {cards.map((c, i) => (
+            <article className="catch" key={c.id} style={{ '--i': i } as CSSProperties}>
+              <div className="who">
+                <Portrait card={c} />
+                <div>
+                  <h2>{c.name ?? 'Attendee'}</h2>
+                  {c.pronouns && <p>{c.pronouns}</p>}
+                  <ApproachBadge approach={c.approach} />
+                  {c.commPref && <p className="muted">Prefers: {c.commPref}</p>}
+                </div>
+              </div>
+              <CommonList common={c.common} theirs={c.name ?? 'Them'} />
+              {booth && c.stuckOn && <p>Stuck on: <b>{c.stuckOn}</b></p>}
+              {booth && <p className="tags">{c.interests?.map((t) => <Tag key={t} label={t} />)}</p>}
+              <button onClick={() => go(booth ? 'leads' : `people/${c.id}`)}>{booth ? 'Send them a request' : `Open ${c.name}`}</button>
+            </article>
+          ))}
+          <button className="ghost" onClick={() => setCards([])}>Scan again</button>
+        </section>
+      )}
+      {error && <p role="alert" className="error">{error}</p>}
+      {!cards.length && <div className="scanner"><Scanner onCatch={scan} /></div>}
+      {isMock && !cards.length && (
+        <div className="row simulate">
+          <button onClick={() => scan([booth ? 500 : me.tagId === 501 ? 500 : 501], 'manual')}>Simulate a scan</button>
+          <button className="ghost" onClick={() => scan([507, 508, 511], 'manual')}>Simulate a group</button>
+        </div>
+      )}
+    </Screen>
   )
 }

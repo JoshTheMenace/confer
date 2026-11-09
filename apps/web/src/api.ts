@@ -68,7 +68,7 @@ async function send(session: Session, route: string, o: { params?: Record<string
     body: o.body === undefined ? undefined : JSON.stringify(o.body),
   }).catch(() => { throw new Error('No connection. Check the network and try again.') })
   const data = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : res.status === 401 ? 'Please sign in again.' : `Something went wrong (${res.status}). Try again.`)
+  if (!res.ok) throw new Error(res.status === 401 ? 'Please sign in again.' : typeof data?.error === 'string' ? data.error : `Something went wrong (${res.status}). Try again.`) // 401 always reads the same, so a dead token signs out quietly
   if (data === null) throw new Error('The server did not answer properly. Try again.') // a proxy's HTML page, not the API
   return data
 }

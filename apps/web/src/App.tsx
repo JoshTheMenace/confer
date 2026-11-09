@@ -136,7 +136,7 @@ export function Stage() {
   const { data } = pulse, t = data?.totals, slo = data?.health.source === 'dash0' ? data.health.slo : undefined
   const numbers: [string, number, ((n: number) => string)?][] = t ? [['Meetings', t.meetings], ['Shared', t.shares], ['Unshared', t.unshares], ['Requests', t.requests], ['Share rate', t.shareRate, pct]] : []
   return (
-    <div className="stage">
+    <main className="stage">
       <Scenery />
       <header>
         <p className="wordmark">Confer</p>
@@ -157,6 +157,6 @@ export function Stage() {
         <Phone slot="left" initial={(flag('left') as Persona) ?? 'amara'} start={flag('l') ?? 'scan'} />
         <Phone slot="right" initial={(flag('right') as Persona) ?? 'diego'} start={flag('r') ?? 'inbox'} />
       </StagePulse>
-    </div>
+    </main>
   )
 }

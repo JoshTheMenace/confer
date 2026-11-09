@@ -6,7 +6,7 @@ import { catchRoutes } from './routes/catch.js'
 import { consent } from './routes/consent.js'
 import { me } from './routes/me.js'
 import { sponsor } from './routes/sponsor.js'
-import { matches } from './routes/matches.js'
+import { booths, discover, prospects } from './routes/discover.js'
 
 // Probes used to ping Elasticsearch on every call (683 pings at ~560ms, found by Dash0 Agent0); check in the background instead.
 let esReady = false
@@ -36,6 +36,8 @@ export const app = new Hono()
   .route('/api/catch', catchRoutes)
   .route('/api/consent', consent)
   .route('/api/sponsor', sponsor)
-  .route('/api/matches', matches)
+  .route('/api/discover', discover)
+  .route('/api/booths', booths)
+  .route('/api/booth', prospects)
 
 export type AppType = typeof app

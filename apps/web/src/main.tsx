@@ -2,6 +2,7 @@ import { init } from '@dash0/sdk-web'
 import { createRoot } from 'react-dom/client'
 import { api } from './api'
 import { App } from './App'
+import './styles.css'
 
 // Runtime config from the API so one image works in every environment.
 try {

@@ -1,6 +1,6 @@
 import { createContext, type CSSProperties, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import type { Api, Approach, Attachment, Card, Common, ContactField, Me, Receipt } from '../../api/src/contract'
-import { flag, type Session, WROTE } from './api'
+import { call, flag, type Session, WROTE } from './api'
 import { contactLink, httpsUrl } from './links'
 import { silhouetteUrl } from './Silhouette'
 
@@ -214,3 +214,14 @@ export const Stat = ({ label, value, format }: { label: string; value: number; f
 export const Bars = ({ terms }: { terms: { term: string; count: number }[] }) => (
   <ul className="bars">{terms.map((t) => <li key={t.term}><span>{t.term}</span><i style={{ '--w': t.count / Math.max(...terms.map((x) => x.count)) } as CSSProperties} /><b>{t.count}</b></li>)}</ul>
 )
+
+/** One tap shares my card with someone I met: no reason, no request. */
+export function ConnectButton({ card }: { card: Card }) {
+  const { session, say } = useApp()
+  const act = useAct()
+  const [done, setDone] = useState(false)
+  const name = nameOf(card), label = card.theyShared ? 'Connect back' : 'Connect'
+  if (card.iShared || done) return <b className="done"><span aria-hidden>✓</span> Connected</b>
+  const connect = () => act.run(() => call(session, 'POST /api/people/:id/share', { params: { id: card.id }, body: {} }).then(() => { setDone(true); say(`Connected with ${name}.`) }))
+  return <><button type="button" className="btn primary" aria-label={`${label} with ${name}`} disabled={act.busy} onClick={connect}>{act.busy ? 'Connecting…' : label}</button><Problem error={act.error} retry={act.retry} /></>
+}

@@ -24,7 +24,7 @@ function RequestCard({ t }: { t: Thread }) {
       <Problem error={act.error} retry={act.retry} />
       <div className="row">
         <button type="button" className="btn primary" onClick={() => go(`inbox/${t.id}`)}>Reply</button>
-        <button type="button" className="btn yellow" disabled={act.busy} onClick={() => answer('share', `Shared your card with ${name}.`)}>Share my card</button>
+        <button type="button" className="btn yellow" disabled={act.busy} onClick={() => answer('share', `Connected with ${name}.`)}>Connect</button>
         <button type="button" className="btn" disabled={act.busy} onClick={() => answer('ignore', 'Ignored. They are not told.')}>Ignore</button>
         <button type="button" className="btn" disabled={act.busy} onClick={() => answer('mute', `Muted ${name}. They cannot message you again.`)}>Mute</button>
       </div>
@@ -51,7 +51,7 @@ export function InboxScreen() {
       {tab === 'Requests' && (
         <ul className="requests">
           {data?.requests.map((t) => <RequestCard key={t.id} t={t} />)}
-          {data && !n && <li className="paper muted">No requests. People and booths can only ask; nobody gets your card unless you tap Share.</li>}
+          {data && !n && <li className="paper muted">No requests. People and booths can only ask; nobody gets your card unless you tap Connect.</li>}
         </ul>
       )}
       {tab === 'Chats' && (

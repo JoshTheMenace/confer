@@ -27,7 +27,8 @@ curl $CONFER/api/people -H "authorization: Bearer $TOKEN"
 curl -X POST   $CONFER/api/people/<id>/share -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' -d '{}'
 curl -X DELETE $CONFER/api/people/<id>/share -H "authorization: Bearer $TOKEN"   # returns a deletion receipt
 
-# 5. For a sponsor: the leads who said yes, as CSV, checked against Kubernetes RBAC row by row.
+# 5. For a sponsor: the leads who said yes, as CSV. Each row is checked against Kubernetes RBAC when it can be asked;
+#    otherwise the share alone decides. The X-Confer-Gate header (kubernetes | elasticsearch-only) says which.
 curl $CONFER/api/booth/export -H "authorization: Bearer $BOOTH_TOKEN"
 ```
 

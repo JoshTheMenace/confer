@@ -2,6 +2,8 @@
 
 *2026-11-09. This is the brief every contributor (human or agent) builds from. The contract is `apps/api/src/contract.ts`.*
 
+> **Update, 16:55 on the day.** Connecting no longer starts with a message request. A scan puts an entry in both people's log, and a **Connect** button on that entry shares your card in one tap. Messaging stays as an optional extra for loud halls and Deaf attendees; a first message still arrives as a request that can be ignored or muted. Where this document says a request is the way to connect, read it with that change.
+
 ## One line
 
 **The front of your badge says hi. Only you say yes.** Everyone you meet sees a silhouette and what you have in common. Your contact card and photo move only when you tap Share, and Unshare takes them back.

@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, type ReactNode, useState } from 'react'
 import type { Card } from '../../../api/src/contract'
 import { call } from '../api'
 import { openers, threadState } from '../links'
@@ -37,5 +37,17 @@ export function Connect({ card, onSent }: { card: Card; onSent?: () => void }) {
         <button type="submit" className="btn primary" disabled={act.busy || !text.trim()}>{act.busy ? 'Sending…' : 'Send request'}</button>
       </div>
     </form>
+  )
+}
+
+/** Messaging is the optional extra (loud rooms, Deaf attendees): the button opens the chat, or the composer for a first line. */
+export function Message({ card, children }: { card: Card; children?: ReactNode }) {
+  const { go } = useApp()
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <div className="row">{children}<button type="button" className="btn" aria-expanded={card.thread ? undefined : open} onClick={() => (card.thread ? go(`inbox/${card.id}`) : setOpen(!open))}>Message</button></div>
+      {open && !card.thread && <Connect card={card} onSent={() => setOpen(false)} />}
+    </>
   )
 }

@@ -22,7 +22,7 @@ export function ChatScreen({ id }: { id: string }) {
   }
   const answer = (action: 'ignore' | 'mute', said: string) => write.run(() => call(session, 'POST /api/chats/:id/answer', { params: { id }, body: { action } }).then(() => { say(said); go('inbox') }))
   // Sharing from an unanswered request goes through its answer, which works even for someone you never scanned.
-  const share = () => { setReceipt(undefined); card.run(() => (asked ? call(session, 'POST /api/chats/:id/answer', { params: { id }, body: { action: 'share' } }) : call(session, 'POST /api/people/:id/share', { params: { id }, body: {} })).then(() => say(`Shared your card with ${name}.`))) }
+  const share = () => { setReceipt(undefined); card.run(() => (asked ? call(session, 'POST /api/chats/:id/answer', { params: { id }, body: { action: 'share' } }) : call(session, 'POST /api/people/:id/share', { params: { id }, body: {} })).then(() => say(`Connected with ${name}.`))) }
   const unshare = () => card.run(() => call(session, 'DELETE /api/people/:id/share', { params: { id } }).then((r) => { setReceipt(r.receipt); say(`Unshared. ${name}'s copy in Confer is deleted.`) }))
   return (
     <>
@@ -41,7 +41,7 @@ export function ChatScreen({ id }: { id: string }) {
         {them.iShared ? (
           <div className="row had"><p><b><span aria-hidden>✓</span> {name} has your card</b><br /><small>{listFields(them.iShared.fields)}</small></p><button type="button" className="btn" disabled={card.busy} onClick={unshare}>{card.busy ? 'Unsharing…' : 'Unshare'}</button></div>
         ) : (
-          <div className="row had"><small>Chatting shares nothing. Share hands over {listFields(me.shareFields)}{me.hasPhoto && ' and your photo'}.</small><button type="button" className="btn primary" disabled={card.busy} onClick={share}>{card.busy ? 'Sharing…' : 'Share my card'}</button></div>
+          <div className="row had"><small>Chatting shares nothing. Connect hands over {listFields(me.shareFields)}{me.hasPhoto && ' and your photo'}.</small><button type="button" className="btn primary" disabled={card.busy} onClick={share}>{card.busy ? 'Connecting…' : them.theyShared ? 'Connect back' : 'Connect'}</button></div>
         )}
         <Problem error={card.error} retry={card.retry} />
         {receipt && !them.iShared && <ReceiptSlip receipt={receipt} name={name} />}

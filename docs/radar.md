@@ -12,6 +12,8 @@ Confer runs on Kubernetes (namespace `dex`: two `dex-web` pods, two `dex-api` po
 | Before the demo | MCP `get_cluster_audit` | Configuration posture: security, reliability, efficiency |
 | Explaining the system | UI Topology | The picture of services, deployments, pods and the CronJob |
 
+Radar's topology of the final deploy, with the consent operator and both service accounts: [screenshot](screenshots/radar-topology.png).
+
 Radar on the morning's first deploy (before the consent operator existed): [overview](screenshots/13-radar-overview.png), [topology](screenshots/14-radar-topology.png), [AI investigation](screenshots/15-radar-ai-investigation.png).
 
 ## What Radar found, and what we did

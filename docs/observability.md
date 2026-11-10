@@ -41,6 +41,8 @@ Why 2 seconds and 95%: a write to Elasticsearch Serverless costs about 0.5s from
 
 Some panels start empty: the `confer.*` counters only move once people scan and share, and Dash0 needs a few minutes of traffic before a new SLO shows a value.
 
+The dashboard on the afternoon of the event: [health panels](screenshots/dash0-dashboard-health.png) and [product and browser panels](screenshots/dash0-dashboard-product.png). Agent0's investigation as it looked in Dash0: [screenshot](screenshots/dash0-agent0.png).
+
 ## Found with Dash0's AI tools
 
 All three are written up in [incidents.md](incidents.md):

@@ -81,6 +81,14 @@ Every number below was measured today on the running app, and every row links to
 | **Gitar** | Reviewed the API contract before any feature code existed and found that people search could be used to read what others wrote about themselves. Earlier it blocked a merge where sponsors could read interests attendees had hidden. | **22 pull requests reviewed, 27 inline findings**, and fixes pushed by Gitar itself on 14 of them, including one for a CI failure it diagnosed. We pushed back three times with evidence. | [PR #11](https://github.com/JoshTheMenace/confer/pull/11), [PR #4](https://github.com/JoshTheMenace/confer/pull/4), [PR #13](https://github.com/JoshTheMenace/confer/pull/13), [PR #21](https://github.com/JoshTheMenace/confer/pull/21), [evidence](docs/evidence/gitar-ci.md) |
 | **Elasticsearch** | "Tracing across 200 services" returns the right talk first, plus matching booths and 6 people who opted in, from one round trip. Embedding similarity could not tell related topics apart, so a reranker judges them. | Cosine scored React and Rust (**0.51**) above OpenTelemetry and Distributed tracing (**0.49**); the reranker gets both right. The search answers in under a second. | [PR #14](https://github.com/JoshTheMenace/confer/pull/14), [PR #17](https://github.com/JoshTheMenace/confer/pull/17), [evidence](docs/evidence/search.md) |
 
+### The tools at work
+
+| Dash0: the dashboard built from `observability/` | Dash0 Agent0: the sign-in lookup investigation |
+|---|---|
+| ![Dash0 dashboard: requests, latency, errors, Elasticsearch calls and the SLO](docs/screenshots/dash0-dashboard-health.png) | ![Agent0 naming the token lookup on 707 of 720 requests](docs/screenshots/dash0-agent0.png) |
+| **Dash0: product counters and browser monitoring** | **Radar: the namespace, with the consent operator** |
+| ![Dash0 dashboard: scans, shares, booth requests, vault reads, web vitals, page views](docs/screenshots/dash0-dashboard-product.png) | ![Radar topology of the dex namespace](docs/screenshots/radar-topology.png) |
+
 ## For judges: where each track lives in the code
 
 

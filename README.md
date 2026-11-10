@@ -94,6 +94,8 @@ Every number below was measured today on the running app, and every row links to
 
 The five-minute demo script is in [docs/demo.md](docs/demo.md).
 
+Building your own event app? Confer is an API first: [docs/integrate.md](docs/integrate.md) shows the five calls that add consent-first scanning to an app you already have.
+
 ## Run it
 
 You need Node 24, pnpm 10, an Elasticsearch Serverless project (the Elasticsearch project type), and optionally a Dash0 organization.
